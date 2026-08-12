@@ -56,7 +56,7 @@ jobs:
         uses: nais/docker-build-push@45d352fb62fb52ccb5ff6cba22c047fa02b35321 # v0
         id: docker-push
         with:
-          team: platforce
+          team: team-dialog
   #  deploy-dev:
   #    name: Deploy to dev-gcp
   #    needs: build
