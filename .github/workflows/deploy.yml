@@ -1,14 +1,22 @@
 name: Build, push, and deploy
 
-on: [push, pull_request]
+on:
+  push:
+    branches-ignore:
+      - 'chore/**'
+  pull_request:
 
 jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup java v5.0.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           java-version: 21
           distribution: 'temurin'
@@ -27,51 +35,58 @@ jobs:
     outputs:
       image: ${{ steps.docker-push.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Setup java v5.0.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
           java-version: 21
           distribution: 'temurin'
-      - name: Setup Gradle to generate and submit dependency graphs
-        uses: gradle/actions/setup-gradle@v5
+      - name: Setup Gradle v5.0.0
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
         with:
           cache-disabled: true
           dependency-graph: generate-and-submit
+          dependency-graph-report-dir: dependency-graph-reports
       - name: Build JAR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./gradlew clean build shadowJar -x test
-      - name: Build and publish Docker image
-        uses: nais/docker-build-push@v0
+      - name: Nais Docker Build Push
+        uses: nais/docker-build-push@45d352fb62fb52ccb5ff6cba22c047fa02b35321 # v0
         id: docker-push
         with:
-          team: team-dialog # <- template: make sure this is correct namespace as well
-  deploy-dev:
-    name: Deploy to dev-gcp
+          team: platforce
+  #  deploy-dev:
+  #    name: Deploy to dev-gcp
+  #    needs: build
+  #    runs-on: ubuntu-latest
+  #    permissions:
+  #      id-token: write
+  #      contents: read
+  #    steps:
+  #      - name: Checkout v5.0.1
+  #        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+  #      - name: Nais Deploy v2
+  #        uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
+  #        env:
+  #          CLUSTER: dev-gcp
+  #          RESOURCE: .nais/dev.yaml
+  #          VAR: image=${{ needs.build.outputs.image }},DEPLOY_CLUSTER=dev-gcp
+  deploy-prod:
+    name: Deploy to prod-gcp
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: nais/deploy/actions/deploy@v2
+      - name: Checkout v5.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Nais Deploy v2
+        uses: nais/deploy/actions/deploy@fa754451577294aae42872a69b888b3470478ec1 # v2
         env:
-          CLUSTER: dev-gcp
-          RESOURCE: .nais/dev.yaml
-          VAR: image=${{ needs.build.outputs.image }},DEPLOY_CLUSTER=dev-gcp
-#  deploy-prod:
-#    name: Deploy to prod-gcp
-#    needs: build
-#    if: github.ref == 'refs/heads/main'
-#    runs-on: ubuntu-latest
-#    permissions:
-#      id-token: write
-#      contents: read
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: nais/deploy/actions/deploy@v2
-#        env:
-#          CLUSTER: prod-gcp
-#          RESOURCE: .nais/prod.yaml
-#          VAR: image=${{ needs.build.outputs.image }},DEPLOY_CLUSTER=prod-gcp
+          CLUSTER: prod-gcp
+          RESOURCE: .nais/prod.yaml
+          VAR: image=${{ needs.build.outputs.image }},DEPLOY_CLUSTER=prod-gcp
