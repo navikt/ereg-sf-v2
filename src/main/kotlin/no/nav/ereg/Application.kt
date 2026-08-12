@@ -1,9 +1,9 @@
-package no.nav.template
+package no.nav.ereg
 
 import mu.KotlinLogging
-import no.nav.template.token.AuthRouteBuilder
-import no.nav.template.token.DefaultTokenValidator
-import no.nav.template.token.MockTokenValidator
+import no.nav.ereg.token.AuthRouteBuilder
+import no.nav.ereg.token.DefaultTokenValidator
+import no.nav.ereg.token.MockTokenValidator
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response

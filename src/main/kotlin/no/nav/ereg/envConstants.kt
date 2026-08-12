@@ -1,6 +1,6 @@
 @file:Suppress("ktlint:standard:filename", "ktlint:standard:property-naming")
 
-package no.nav.template
+package no.nav.ereg
 
 const val env_AZURE_APP_WELL_KNOWN_URL = "AZURE_APP_WELL_KNOWN_URL"
 const val env_AZURE_APP_CLIENT_ID = "AZURE_APP_CLIENT_ID"

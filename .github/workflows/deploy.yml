@@ -45,7 +45,7 @@ jobs:
         uses: nais/docker-build-push@v0
         id: docker-push
         with:
-          team: teamcrm # <- template: make sure this is correct namespace as well
+          team: team-dialog # <- template: make sure this is correct namespace as well
   deploy-dev:
     name: Deploy to dev-gcp
     needs: build

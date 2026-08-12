@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.ereg
 
 import org.junit.jupiter.api.Test
 

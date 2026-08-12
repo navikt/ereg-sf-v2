@@ -1,6 +1,6 @@
-package no.nav.template.token
+package no.nav.ereg.token
 
-import no.nav.template.Metrics
+import no.nav.ereg.Metrics
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response

@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.ereg
 
 val application = Application()
 

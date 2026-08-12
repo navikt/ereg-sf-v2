@@ -1,4 +1,4 @@
-package no.nav.template.token
+package no.nav.ereg.token
 
 import no.nav.security.token.support.core.jwt.JwtToken
 import org.http4k.core.Request

@@ -2,9 +2,9 @@ apiVersion: "nais.io/v1alpha1"
 kind: "Application"
 metadata:
   name: template
-  namespace: teamcrm
+  namespace: team-dialog
   labels:
-    team: teamcrm
+    team: team-dialog
 spec:
   image: "{{ image }}"
   port: 8080
@@ -29,8 +29,8 @@ spec:
     requests:
       cpu: 10m
       memory: 512Mi
-  #  ingresses:
-  #    - "https://sf-mellomvare.template.intern.nav.no"
+  ingresses:
+    - "https://ereg-sf-v2.intern.nav.no"
   #  azure:
   #    application:
   #      enabled: true
@@ -45,7 +45,7 @@ spec:
   #    inbound:
   #      rules:
   #        - application: salesforce
-  #          namespace: teamcrm
+  #          namespace: team-dialog
   #          cluster: prod-external
   #  envFrom:
   #    - secret: template

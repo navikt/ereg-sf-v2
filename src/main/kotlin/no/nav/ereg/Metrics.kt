@@ -1,4 +1,4 @@
-package no.nav.template
+package no.nav.ereg
 
 import io.prometheus.client.CollectorRegistry
 import io.prometheus.client.Counter

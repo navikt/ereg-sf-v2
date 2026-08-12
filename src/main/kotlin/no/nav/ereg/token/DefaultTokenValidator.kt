@@ -1,13 +1,13 @@
-package no.nav.template.token
+package no.nav.ereg.token
 
+import no.nav.ereg.env
+import no.nav.ereg.env_AZURE_APP_CLIENT_ID
+import no.nav.ereg.env_AZURE_APP_WELL_KNOWN_URL
 import no.nav.security.token.support.core.configuration.IssuerProperties
 import no.nav.security.token.support.core.configuration.MultiIssuerConfiguration
 import no.nav.security.token.support.core.http.HttpRequest
 import no.nav.security.token.support.core.jwt.JwtToken
 import no.nav.security.token.support.core.validation.JwtTokenValidationHandler
-import no.nav.template.env
-import no.nav.template.env_AZURE_APP_CLIENT_ID
-import no.nav.template.env_AZURE_APP_WELL_KNOWN_URL
 import org.http4k.core.Request
 import java.net.URL
 
