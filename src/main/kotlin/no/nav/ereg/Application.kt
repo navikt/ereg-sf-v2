@@ -67,7 +67,7 @@ class Application {
                     .body(
                         gson.toJson(
                             mapOf(
-                                "date" to LocalDate.now(),
+                                "date" to LocalDate.now().toString(),
                                 "status" to run.status,
                                 "enhetCount" to run.enhetCount,
                                 "underenhetCount" to run.underenhetCount,
