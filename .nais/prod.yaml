@@ -47,7 +47,10 @@ spec:
         - NAVident
   #    sidecar:
   #      enabled: false
-  #  accessPolicy:
+  accessPolicy:
+    outbound:
+      external:
+        - host: data.brreg.no
   #    inbound:
   #      rules:
   #        - application: salesforce
