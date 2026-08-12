@@ -1,6 +1,7 @@
 package no.nav.ereg
 
 import EnhetSnapshot
+import UnderenhetSnapshot
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
@@ -31,12 +32,18 @@ import java.time.LocalDate
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-const val DB_BATCH_SIZE = 1_000
+const val DB_BATCH_SIZE = 2_000
 const val ENHETER_URL =
     "https://data.brreg.no/enhetsregisteret/api/enheter/lastned"
 
 const val ENHET_ACCEPT_HEADER =
     "application/vnd.brreg.enhetsregisteret.enhet.v2+gzip;charset=UTF-8"
+
+const val UNDERENHETER_URL =
+    "https://data.brreg.no/enhetsregisteret/api/underenheter/lastned"
+
+const val UNDERENHET_ACCEPT_HEADER =
+    "application/vnd.brreg.enhetsregisteret.underenhet.v2+gzip;charset=UTF-8"
 
 class Application {
     private val log = KotlinLogging.logger { }
@@ -210,20 +217,124 @@ class Application {
             .digest(value.toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it) }
 
-    private fun downloadAndImportEnheter(snapshotDate: LocalDate) {
+    private fun importUnderenheter(
+        input: InputStream,
+        snapshotDate: LocalDate,
+    ) {
+        val batch =
+            ArrayList<UnderenhetSnapshot>(DB_BATCH_SIZE)
+
+        var count = 0
+
+        JsonReader(
+            InputStreamReader(
+                input,
+                Charsets.UTF_8,
+            ),
+        ).use { reader ->
+
+            reader.beginArray()
+
+            while (reader.hasNext()) {
+                val jsonObject =
+                    JsonParser
+                        .parseReader(reader)
+                        .asJsonObject
+
+                val json = jsonObject.toString()
+
+                val orgNumber =
+                    jsonObject
+                        .get("organisasjonsnummer")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asString
+                        ?: error("Missing organisasjonsnummer")
+
+                val name =
+                    jsonObject
+                        .get("navn")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asString
+
+                val registrationDate =
+                    jsonObject
+                        .get("registreringsdatoEnhetsregisteret")
+                        ?.takeIf { !it.isJsonNull }
+                        ?.asString
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(LocalDate::parse)
+
+                batch +=
+                    UnderenhetSnapshot(
+                        snapshotDate = snapshotDate,
+                        orgNumber = orgNumber,
+                        name = name,
+                        registrationDate = registrationDate,
+                        payloadHash = sha256(json),
+                        payload = json,
+                    )
+
+                count++
+
+                if (batch.size >= DB_BATCH_SIZE) {
+                    PostgresDatabase.saveUnderenhetBatch(
+                        snapshotDate = snapshotDate,
+                        rows = batch,
+                    )
+
+                    batch.clear()
+
+                    PostgresDatabase.updateUnderenhetSnapshotProgress(
+                        snapshotDate = snapshotDate,
+                        underenhetCount = count,
+                    )
+
+                    if (count % 100_000 == 0) {
+                        log.info {
+                            "Imported $count UNDERENHET rows"
+                        }
+                    }
+                }
+            }
+
+            reader.endArray()
+        }
+
+        if (batch.isNotEmpty()) {
+            PostgresDatabase.saveUnderenhetBatch(
+                snapshotDate = snapshotDate,
+                rows = batch,
+            )
+
+            PostgresDatabase.updateUnderenhetSnapshotProgress(
+                snapshotDate = snapshotDate,
+                underenhetCount = count,
+            )
+        }
+
+        log.info {
+            "Finished importing $count UNDERENHET rows"
+        }
+    }
+
+    private fun downloadAndImport(
+        url: String,
+        acceptHeader: String,
+        snapshotDate: LocalDate,
+        importer: (InputStream, LocalDate) -> Unit,
+    ) {
         val request =
             Request(
                 Method.GET,
-                ENHETER_URL,
+                url,
             ).header(
                 "Accept",
-                ENHET_ACCEPT_HEADER,
+                acceptHeader,
             )
 
-        val response =
-            okHttpClient(request)
+        val response = okHttpClient(request)
 
-        if (response.status.successful.not()) {
+        if (!response.status.successful) {
             error(
                 "Brreg download failed: " +
                     "${response.status} ${response.bodyString()}",
@@ -232,14 +343,29 @@ class Application {
 
         response.body
             .gunzippedStream(
-                maxSize = 10L * 1024 * 1024 * 1024, // 10 Gb limit
+                maxSize = 10L * 1024 * 1024 * 1024,
             ).stream
             .use { stream ->
-                importEnheter(
-                    input = stream,
-                    snapshotDate = snapshotDate,
-                )
+                importer(stream, snapshotDate)
             }
+    }
+
+    private fun downloadAndImportEnheter(snapshotDate: LocalDate) {
+        downloadAndImport(
+            url = ENHETER_URL,
+            acceptHeader = ENHET_ACCEPT_HEADER,
+            snapshotDate = snapshotDate,
+            importer = ::importEnheter,
+        )
+    }
+
+    private fun downloadAndImportUnderenheter(snapshotDate: LocalDate) {
+        downloadAndImport(
+            url = UNDERENHETER_URL,
+            acceptHeader = UNDERENHET_ACCEPT_HEADER,
+            snapshotDate = snapshotDate,
+            importer = ::importUnderenheter,
+        )
     }
 
     enum class TodayRunStatus {
@@ -352,6 +478,8 @@ class Application {
                 }
 
                 downloadAndImportEnheter(snapshotDate)
+
+                downloadAndImportUnderenheter(snapshotDate)
 
                 val snapshot =
                     PostgresDatabase.getEnhetsregisterSnapshot(

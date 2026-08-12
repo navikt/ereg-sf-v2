@@ -234,4 +234,20 @@ object PostgresDatabase {
             }
         }
     }
+
+    fun updateUnderenhetSnapshotProgress(
+        snapshotDate: LocalDate,
+        underenhetCount: Int,
+    ) {
+        transaction(database) {
+            EnhetsregisterSnapshotTable.update(
+                where = {
+                    EnhetsregisterSnapshotTable.snapshotDate eq snapshotDate
+                },
+            ) {
+                it[EnhetsregisterSnapshotTable.underenhetCount] =
+                    underenhetCount
+            }
+        }
+    }
 }
