@@ -1,0 +1,26 @@
+# Intellij
+.idea/
+.kotlin/
+build/
+*.iml
+*.iws
+
+# Mac
+.DS_Store
+
+# Maven
+log/
+target/
+
+# Gradle
+.gradle/
+out/
+logbody*
+Scratch*
+
+
+# misc
+.*.sw?
+*.vim
+TAGS
+tags

@@ -1,0 +1,67 @@
+plugins {
+    id 'application'
+
+    id 'org.jetbrains.kotlin.jvm' version '2.1.21'
+    id 'org.jmailen.kotlinter' version '5.2.0'
+    id 'com.gradleup.shadow' version '8.3.1'
+}
+
+group 'no.nav.template'
+version '0.1.1'
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'no.nav.template.BootstrapKt'
+    }
+}
+
+shadowJar {
+    archiveBaseName = 'app'
+    archiveClassifier = ''
+}
+
+application {
+    mainClassName = 'no.nav.template.BootstrapKt'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation "no.nav.security:token-validation-core:5.0.29"
+
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0"
+
+    implementation 'com.google.code.gson:gson:2.13.2'
+
+    implementation "org.http4k:http4k-core:6.20.1.0"
+    implementation "org.http4k:http4k-server-netty:6.20.1.0"
+    implementation "org.http4k:http4k-client-okhttp:6.20.1.0"
+
+    implementation "io.github.microutils:kotlin-logging:3.0.5"
+    implementation "ch.qos.logback:logback-classic:1.5.20"
+    implementation "net.logstash.logback:logstash-logback-encoder:8.1"
+
+    implementation "io.prometheus:simpleclient_common:0.8.1"
+    implementation "io.prometheus:simpleclient_hotspot:0.8.1"
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.11.4'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.11.4'
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+sourceSets {
+    main.kotlin.srcDirs += 'src/main/kotlin'
+    test.kotlin.srcDirs += 'src/test/kotlin'
+}
+
+kotlin {
+    jvmToolchain(21)
+}
