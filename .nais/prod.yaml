@@ -37,14 +37,14 @@ spec:
           - name: ereg
   ingresses:
     - "https://ereg-sf-v2.intern.nav.no"
-  #  azure:
-  #    application:
-  #      enabled: true
-  #      allowAllUsers: true
-  #      claims:
-  #        extra:
-  #          - azp_name
-  #          - NAVident
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+      claims:
+       extra:
+        - azp_name
+        - NAVident
   #    sidecar:
   #      enabled: false
   #  accessPolicy:
