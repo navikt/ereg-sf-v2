@@ -4,6 +4,7 @@ import mu.KotlinLogging
 import no.nav.ereg.token.AuthRouteBuilder
 import no.nav.ereg.token.DefaultTokenValidator
 import no.nav.ereg.token.MockTokenValidator
+import no.nav.sf.keytool.db.PostgresDatabase
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Response
@@ -32,6 +33,8 @@ class Application {
             "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
             "/internal/hello" bind Method.GET to { Response(OK).body("Hello") },
             "/internal/secrethello" authbind Method.GET to { Response(OK).body("Secret Hello") },
+            "/internal/clearDb" bind Method.GET to clearDbHandler,
+            "/internal/initDb" bind Method.GET to initDbHandler,
         )
 
     /**
@@ -42,5 +45,19 @@ class Application {
     fun start() {
         log.info { "Starting in cluster $cluster" }
         apiServer(8080).start()
+    }
+
+    private val clearDbHandler: HttpHandler = {
+        PostgresDatabase.createEnhetsregisterSnapshotTable(true)
+        PostgresDatabase.createEnhetSnapshotTable(true)
+        PostgresDatabase.createUnderenhetSnapshotTable(true)
+        Response(OK).body("Tables recreated")
+    }
+
+    private val initDbHandler: HttpHandler = {
+        PostgresDatabase.createEnhetsregisterSnapshotTable(false)
+        PostgresDatabase.createEnhetSnapshotTable(false)
+        PostgresDatabase.createUnderenhetSnapshotTable(false)
+        Response(OK).body("Tables created")
     }
 }
