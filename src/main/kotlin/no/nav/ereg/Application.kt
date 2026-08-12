@@ -9,6 +9,7 @@ import no.nav.ereg.token.AuthRouteBuilder
 import no.nav.ereg.token.DefaultTokenValidator
 import no.nav.ereg.token.MockTokenValidator
 import no.nav.sf.keytool.db.PostgresDatabase
+import okhttp3.OkHttpClient
 import org.http4k.client.OkHttp
 import org.http4k.core.BodyMode
 import org.http4k.core.HttpHandler
@@ -28,6 +29,7 @@ import java.io.InputStreamReader
 import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 const val DB_BATCH_SIZE = 1_000
 const val ENHETER_URL =
@@ -46,6 +48,19 @@ class Application {
     val tokenValidator = if (local) MockTokenValidator() else DefaultTokenValidator()
 
     val cluster = if (local) "local" else env(env_NAIS_CLUSTER_NAME)
+
+    private val okHttpClient =
+        OkHttp(
+            client =
+                OkHttpClient
+                    .Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.MINUTES)
+                    .writeTimeout(30, TimeUnit.SECONDS)
+                    .callTimeout(60, TimeUnit.MINUTES)
+                    .build(),
+            bodyMode = BodyMode.Stream,
+        )
 
     fun apiServer(port: Int): Http4kServer = api().asServer(Netty(port))
 
@@ -196,11 +211,6 @@ class Application {
             .joinToString("") { "%02x".format(it) }
 
     private fun downloadAndImportEnheter(snapshotDate: LocalDate) {
-        val okHttpClient =
-            OkHttp(
-                bodyMode = BodyMode.Stream,
-            )
-
         val request =
             Request(
                 Method.GET,
