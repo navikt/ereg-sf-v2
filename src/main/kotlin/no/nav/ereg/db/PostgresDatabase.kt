@@ -6,6 +6,7 @@ import EnhetSnapshot
 import EnhetSnapshotTable
 import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
+import SALESFORCE_INITIAL_LOAD_PROGRESS
 import SalesforceInitialLoadProgress
 import UNDERENHET_SNAPSHOT
 import UnderenhetSnapshot
@@ -101,6 +102,21 @@ object PostgresDatabase {
             }
 
             log.info { "Creating table $UNDERENHET_SNAPSHOT" }
+            SchemaUtils.create(UnderenhetSnapshotTable)
+        }
+    }
+
+    fun createSalesforceInitialLoadProgressTable(dropFirst: Boolean = false) {
+        transaction {
+            if (dropFirst) {
+                log.info { "Dropping table $SALESFORCE_INITIAL_LOAD_PROGRESS" }
+                val dropStatement =
+                    TransactionManager.current().connection.prepareStatement("DROP TABLE $SALESFORCE_INITIAL_LOAD_PROGRESS", false)
+                dropStatement.executeUpdate()
+                log.info { "Drop performed" }
+            }
+
+            log.info { "Creating table $SALESFORCE_INITIAL_LOAD_PROGRESS" }
             SchemaUtils.create(UnderenhetSnapshotTable)
         }
     }

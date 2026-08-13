@@ -121,13 +121,15 @@ class Application {
         PostgresDatabase.createEnhetsregisterSnapshotTable(true)
         PostgresDatabase.createEnhetSnapshotTable(true)
         PostgresDatabase.createUnderenhetSnapshotTable(true)
+        PostgresDatabase.createSalesforceInitialLoadProgressTable(true)
         Response(OK).body("Tables recreated")
     }
 
     private val initDbHandler: HttpHandler = {
-        PostgresDatabase.createEnhetsregisterSnapshotTable(false)
-        PostgresDatabase.createEnhetSnapshotTable(false)
-        PostgresDatabase.createUnderenhetSnapshotTable(false)
+//        PostgresDatabase.createEnhetsregisterSnapshotTable(false)
+//        PostgresDatabase.createEnhetSnapshotTable(false)
+//        PostgresDatabase.createUnderenhetSnapshotTable(false)
+        PostgresDatabase.createSalesforceInitialLoadProgressTable(false)
         Response(OK).body("Tables created")
     }
 
