@@ -8,6 +8,7 @@ import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
 import SALESFORCE_INITIAL_LOAD_PROGRESS
 import SalesforceInitialLoadProgress
+import SalesforceInitialLoadProgressTable
 import UNDERENHET_SNAPSHOT
 import UnderenhetSnapshot
 import UnderenhetSnapshotTable
@@ -117,7 +118,7 @@ object PostgresDatabase {
             }
 
             log.info { "Creating table $SALESFORCE_INITIAL_LOAD_PROGRESS" }
-            SchemaUtils.create(UnderenhetSnapshotTable)
+            SchemaUtils.create(SalesforceInitialLoadProgressTable)
         }
     }
 
