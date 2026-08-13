@@ -45,20 +45,15 @@ spec:
        extra:
         - azp_name
         - NAVident
-  #    sidecar:
-  #      enabled: false
   accessPolicy:
     outbound:
       external:
         - host: data.brreg.no
-  #    inbound:
-  #      rules:
-  #        - application: salesforce
-  #          namespace: team-dialog
-  #          cluster: prod-external
-  #  envFrom:
-  #    - secret: template
-
+        - host: login.salesforce.com
+        - host: navdialog.my.salesforce.com
+  envFrom:
+    - configmap: salesforce-common
+    - secret: ereg-sf
   env:
     - name: AN_ENV
       value: "a value in prod"

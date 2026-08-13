@@ -5,6 +5,7 @@ import UnderenhetSnapshot
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
+import filesHandler
 import mu.KotlinLogging
 import no.nav.ereg.token.AuthRouteBuilder
 import no.nav.ereg.token.DefaultTokenValidator
@@ -25,6 +26,7 @@ import org.http4k.routing.routes
 import org.http4k.server.Http4kServer
 import org.http4k.server.Netty
 import org.http4k.server.asServer
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.security.MessageDigest
@@ -78,6 +80,8 @@ class Application {
             "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
             "/internal/hello" bind Method.GET to { Response(OK).body("Hello") },
             "/internal/secrethello" authbind Method.GET to { Response(OK).body("Secret Hello") },
+            "/internal/files" bind Method.GET to filesHandler(File("/tmp/files")),
+            "/internal/files/{path:.*}" bind Method.GET to filesHandler(File("/tmp/files")),
             "/internal/clearDb" bind Method.GET to clearDbHandler,
             "/internal/initDb" bind Method.GET to initDbHandler,
             "/internal/triggerRun" bind Method.GET to triggerRunHandler,
@@ -96,6 +100,8 @@ class Application {
 
     fun start() {
         log.info { "Starting in cluster $cluster" }
+        val dir = File("/tmp/files")
+        dir.mkdirs() // ensures /tmp/files exists
         apiServer(8080).start()
     }
 
@@ -503,7 +509,7 @@ class Application {
                 PostgresDatabase.markSnapshotReady(
                     snapshotDate = snapshotDate,
                     enhetCount = snapshot.enhetCount ?: 0,
-                    underenhetCount = 0,
+                    underenhetCount = snapshot.underenhetCount ?: 0,
                     sourceChecksum = null,
                 )
 
