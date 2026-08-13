@@ -82,20 +82,10 @@ class Application {
             "/internal/initDb" bind Method.GET to initDbHandler,
             "/internal/triggerRun" bind Method.GET to triggerRunHandler,
             "/internal/status" bind Method.GET to {
-                val run = todayRun()
-
-                Response(OK)
-                    .header("Content-Type", "application/json")
-                    .body(
-                        gson.toJson(
-                            mapOf(
-                                "date" to LocalDate.now().toString(),
-                                "status" to run.status,
-                                "enhetCount" to run.enhetCount,
-                                "underenhetCount" to run.underenhetCount,
-                            ),
-                        ),
-                    )
+                runResponse(LocalDate.now())
+            },
+            "/internal/statusYesterday" bind Method.GET to {
+                runResponse(LocalDate.now().minusDays(1))
             },
         )
 
@@ -375,24 +365,24 @@ class Application {
         DONE,
     }
 
-    data class TodayRun(
+    data class Run(
         val status: TodayRunStatus,
         val enhetCount: Int,
         val underenhetCount: Int,
     )
 
-    fun todayRun(): TodayRun {
+    fun fetchRun(date: LocalDate): Run {
         val snapshot =
             PostgresDatabase.getEnhetsregisterSnapshot(
-                LocalDate.now(),
+                date,
             )
-                ?: return TodayRun(
+                ?: return Run(
                     status = TodayRunStatus.NOT_RUN,
                     enhetCount = 0,
                     underenhetCount = 0,
                 )
 
-        return TodayRun(
+        return Run(
             status =
                 when (
                     snapshot.status
@@ -409,6 +399,27 @@ class Application {
             enhetCount = snapshot.enhetCount ?: 0,
             underenhetCount = snapshot.underenhetCount ?: 0,
         )
+    }
+
+    fun yesterdayRun(): Run = fetchRun(LocalDate.now().minusDays(1))
+
+    fun todayRun(): Run = fetchRun(LocalDate.now())
+
+    fun runResponse(date: LocalDate): Response {
+        val run = fetchRun(date)
+
+        return Response(OK)
+            .header("Content-Type", "application/json")
+            .body(
+                gson.toJson(
+                    mapOf(
+                        "date" to date.toString(),
+                        "status" to run.status.name,
+                        "enhetCount" to run.enhetCount,
+                        "underenhetCount" to run.underenhetCount,
+                    ),
+                ),
+            )
     }
 
     private val runExecutor =
