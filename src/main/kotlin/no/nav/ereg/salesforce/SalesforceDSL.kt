@@ -1,6 +1,7 @@
 package no.nav.ereg.salesforce
 
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import io.prometheus.client.Histogram
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -12,6 +13,7 @@ import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 import java.io.File
+import java.lang.reflect.Type
 import java.net.InetSocketAddress
 import java.net.Proxy
 import java.net.URI
@@ -192,4 +194,26 @@ sealed class SFAccessToken {
                     log.error { "Parsing of authorization response failed - ${it.localizedMessage}" }
                 }.getOrDefault(Missing)
     }
+}
+
+data class KafkaMessage(
+    val attributes: SFsObjectRestAttributes = SFsObjectRestAttributes(),
+    val CRM_Topic__c: String,
+    val CRM_Key__c: String,
+    val CRM_Value__c: String,
+)
+
+data class SFsObjectRestAttributes(
+    val type: String = "KafkaMessage__c",
+)
+
+/**
+ * The general sObject REST API for posting records of different types
+ * In this case, post of KafkaMessage containing attribute refering to Salesforce custom object KafkaMessage__c
+ */
+data class SFsObjectRest(
+    val allOrNone: Boolean = true,
+    val records: List<KafkaMessage>,
+) {
+    fun toJson(): String = gson.toJson(this)
 }

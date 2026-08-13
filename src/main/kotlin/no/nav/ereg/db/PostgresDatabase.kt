@@ -6,15 +6,18 @@ import EnhetSnapshot
 import EnhetSnapshotTable
 import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
+import SalesforceInitialLoadProgress
 import UNDERENHET_SNAPSHOT
 import UnderenhetSnapshot
 import UnderenhetSnapshotTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
+import no.nav.ereg.OrgType
 import no.nav.ereg.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
@@ -24,7 +27,11 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.TransactionManager
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import org.jetbrains.exposed.sql.upsert
+import toEnhetSnapshot
 import toEnhetsregisterSnapshot
+import toSalesforceInitialLoadProgress
+import toUnderenhetSnapshot
 import java.time.Instant
 import java.time.LocalDate
 
@@ -250,4 +257,156 @@ object PostgresDatabase {
             }
         }
     }
+
+    fun getSalesforceInitialLoadProgress(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+    ): SalesforceInitialLoadProgress? =
+        transaction(database) {
+            SalesforceInitialLoadProgressTable
+                .selectAll()
+                .where {
+                    (SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceInitialLoadProgressTable.orgType eq orgType.name)
+                }.singleOrNull()
+                ?.toSalesforceInitialLoadProgress()
+        }
+
+    fun startSalesforceInitialLoad(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        lastOrgNumber: String? = null,
+    ) {
+        transaction(database) {
+            SalesforceInitialLoadProgressTable.upsert(
+                keys =
+                    arrayOf(
+                        SalesforceInitialLoadProgressTable.snapshotDate,
+                        SalesforceInitialLoadProgressTable.orgType,
+                    ),
+            ) {
+                it[SalesforceInitialLoadProgressTable.snapshotDate] = snapshotDate
+                it[SalesforceInitialLoadProgressTable.orgType] = orgType.name
+                it[status] = SalesforceInitialLoadStatus.IN_PROGRESS.name
+                it[SalesforceInitialLoadProgressTable.lastOrgNumber] = lastOrgNumber
+                it[startedAt] = Instant.now()
+                it[completedAt] = null
+            }
+        }
+    }
+
+    fun updateSalesforceInitialLoadProgress(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        lastOrgNumber: String,
+    ) {
+        transaction(database) {
+            SalesforceInitialLoadProgressTable.update(
+                where = {
+                    (SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceInitialLoadProgressTable.orgType eq orgType.name)
+                },
+            ) {
+                it[SalesforceInitialLoadProgressTable.lastOrgNumber] =
+                    lastOrgNumber
+
+                it[status] =
+                    SalesforceInitialLoadStatus.IN_PROGRESS.name
+            }
+        }
+    }
+
+    fun markSalesforceInitialLoadDone(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+    ) {
+        transaction(database) {
+            SalesforceInitialLoadProgressTable.update(
+                where = {
+                    (SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceInitialLoadProgressTable.orgType eq orgType.name)
+                },
+            ) {
+                it[status] =
+                    SalesforceInitialLoadStatus.DONE.name
+                it[completedAt] = Instant.now()
+            }
+        }
+    }
+
+    fun markSalesforceInitialLoadFailed(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+    ) {
+        transaction(database) {
+            SalesforceInitialLoadProgressTable.update(
+                where = {
+                    (SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceInitialLoadProgressTable.orgType eq orgType.name)
+                },
+            ) {
+                it[status] =
+                    SalesforceInitialLoadStatus.FAILED.name
+                it[completedAt] = Instant.now()
+            }
+        }
+    }
+
+    fun fetchEnhetBatch(
+        snapshotDate: LocalDate,
+        afterOrgNumber: String?,
+        limit: Int = 100,
+    ): List<EnhetSnapshot> =
+        transaction(database) {
+            val query =
+                if (afterOrgNumber == null) {
+                    EnhetSnapshotTable
+                        .selectAll()
+                        .where {
+                            EnhetSnapshotTable.snapshotDate eq snapshotDate
+                        }
+                } else {
+                    EnhetSnapshotTable
+                        .selectAll()
+                        .where {
+                            (EnhetSnapshotTable.snapshotDate eq snapshotDate) and
+                                (EnhetSnapshotTable.orgNumber greater afterOrgNumber)
+                        }
+                }
+
+            query
+                .orderBy(
+                    EnhetSnapshotTable.orgNumber to SortOrder.ASC,
+                ).limit(limit)
+                .map { it.toEnhetSnapshot() }
+        }
+
+    fun fetchUnderenhetBatch(
+        snapshotDate: LocalDate,
+        afterOrgNumber: String?,
+        limit: Int = 100,
+    ): List<UnderenhetSnapshot> =
+        transaction(database) {
+            val query =
+                if (afterOrgNumber == null) {
+                    UnderenhetSnapshotTable
+                        .selectAll()
+                        .where {
+                            UnderenhetSnapshotTable.snapshotDate eq snapshotDate
+                        }
+                } else {
+                    UnderenhetSnapshotTable
+                        .selectAll()
+                        .where {
+                            (UnderenhetSnapshotTable.snapshotDate eq snapshotDate) and
+                                (UnderenhetSnapshotTable.orgNumber greater afterOrgNumber)
+                        }
+                }
+
+            query
+                .orderBy(
+                    UnderenhetSnapshotTable.orgNumber to SortOrder.ASC,
+                ).limit(limit)
+                .map { it.toUnderenhetSnapshot() }
+        }
 }

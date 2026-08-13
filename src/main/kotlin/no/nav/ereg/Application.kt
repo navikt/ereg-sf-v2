@@ -1,3 +1,5 @@
+@file:Suppress("ktlint:standard:property-naming")
+
 package no.nav.ereg
 
 import EnhetSnapshot
@@ -7,6 +9,9 @@ import com.google.gson.JsonParser
 import com.google.gson.stream.JsonReader
 import filesHandler
 import mu.KotlinLogging
+import no.nav.ereg.salesforce.KafkaMessage
+import no.nav.ereg.salesforce.SalesforceClient
+import no.nav.ereg.salesforce.encodeB64
 import no.nav.ereg.token.AuthRouteBuilder
 import no.nav.ereg.token.DefaultTokenValidator
 import no.nav.ereg.token.MockTokenValidator
@@ -33,6 +38,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 const val DB_BATCH_SIZE = 2_000
 const val ENHETER_URL =
@@ -47,6 +53,9 @@ const val UNDERENHETER_URL =
 const val UNDERENHET_ACCEPT_HEADER =
     "application/vnd.brreg.enhetsregisteret.underenhet.v2+gzip;charset=UTF-8"
 
+const val orgTopic = "public-ereg-cache-org-json"
+const val tombstoneTopic = "public-ereg-cache-org-tombstones"
+
 class Application {
     private val log = KotlinLogging.logger { }
 
@@ -57,6 +66,11 @@ class Application {
     val tokenValidator = if (local) MockTokenValidator() else DefaultTokenValidator()
 
     val cluster = if (local) "local" else env(env_NAIS_CLUSTER_NAME)
+
+    val salesforceClient = SalesforceClient()
+
+    private val salesforceFullLoadRunning =
+        AtomicBoolean(false)
 
     private val okHttpClient =
         OkHttp(
@@ -85,12 +99,10 @@ class Application {
             "/internal/clearDb" bind Method.GET to clearDbHandler,
             "/internal/initDb" bind Method.GET to initDbHandler,
             "/internal/triggerRun" bind Method.GET to triggerRunHandler,
-            "/internal/status" bind Method.GET to {
-                runResponse(LocalDate.now())
-            },
-            "/internal/statusYesterday" bind Method.GET to {
-                runResponse(LocalDate.now().minusDays(1))
-            },
+            "/internal/status" bind Method.GET to { runResponse(LocalDate.now()) },
+            "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
+            "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
+            "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
         )
 
     /**
@@ -407,12 +419,20 @@ class Application {
         )
     }
 
-    fun yesterdayRun(): Run = fetchRun(LocalDate.now().minusDays(1))
-
-    fun todayRun(): Run = fetchRun(LocalDate.now())
-
     fun runResponse(date: LocalDate): Response {
         val run = fetchRun(date)
+
+        val enhetInitialLoad =
+            PostgresDatabase.getSalesforceInitialLoadProgress(
+                snapshotDate = date,
+                orgType = OrgType.ENHET,
+            )
+
+        val underenhetInitialLoad =
+            PostgresDatabase.getSalesforceInitialLoadProgress(
+                snapshotDate = date,
+                orgType = OrgType.UNDERENHET,
+            )
 
         return Response(OK)
             .header("Content-Type", "application/json")
@@ -423,6 +443,25 @@ class Application {
                         "status" to run.status.name,
                         "enhetCount" to run.enhetCount,
                         "underenhetCount" to run.underenhetCount,
+                        "salesforceInitialLoad" to
+                            mapOf(
+                                "enhet" to
+                                    enhetInitialLoad?.let {
+                                        mapOf(
+                                            "status" to it.status.name,
+                                            "lastOrgNumber" to it.lastOrgNumber,
+                                            "completedAt" to it.completedAt?.toString(),
+                                        )
+                                    },
+                                "underenhet" to
+                                    underenhetInitialLoad?.let {
+                                        mapOf(
+                                            "status" to it.status.name,
+                                            "lastOrgNumber" to it.lastOrgNumber,
+                                            "completedAt" to it.completedAt?.toString(),
+                                        )
+                                    },
+                            ),
                     ),
                 ),
             )
@@ -530,4 +569,295 @@ class Application {
             }
         }
     }
+
+    private fun runSalesforceFullLoad(snapshotDate: LocalDate) {
+        log.info {
+            "Starting Salesforce full load for $snapshotDate"
+        }
+
+        runSalesforceInitialLoadForEnhet(snapshotDate)
+        runSalesforceInitialLoadForUnderenhet(snapshotDate)
+
+        log.info {
+            "Salesforce full load completed for $snapshotDate"
+        }
+    }
+
+    private fun runSalesforceInitialLoadForEnhet(snapshotDate: LocalDate) {
+        try {
+            val existing =
+                PostgresDatabase.getSalesforceInitialLoadProgress(
+                    snapshotDate,
+                    OrgType.ENHET,
+                )
+
+            var lastOrgNumber =
+                existing?.lastOrgNumber
+
+            PostgresDatabase.startSalesforceInitialLoad(
+                snapshotDate = snapshotDate,
+                orgType = OrgType.ENHET,
+                lastOrgNumber = lastOrgNumber,
+            )
+
+            while (true) {
+                val batch =
+                    PostgresDatabase.fetchEnhetBatch(
+                        snapshotDate = snapshotDate,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = 100,
+                    )
+
+                if (batch.isEmpty()) {
+                    PostgresDatabase.markSalesforceInitialLoadDone(
+                        snapshotDate,
+                        OrgType.ENHET,
+                    )
+
+                    return
+                }
+
+                val changes =
+                    batch.map { it.toNewChange() }
+
+                salesforceClient.postChanges(changes)
+
+                lastOrgNumber =
+                    batch.last().orgNumber
+
+                PostgresDatabase.updateSalesforceInitialLoadProgress(
+                    snapshotDate = snapshotDate,
+                    orgType = OrgType.ENHET,
+                    lastOrgNumber = lastOrgNumber,
+                )
+
+                log.info {
+                    "Salesforce initial ENHET load progressed to " +
+                        lastOrgNumber
+                }
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceInitialLoadFailed(
+                snapshotDate,
+                OrgType.ENHET,
+            )
+            throw e
+        }
+    }
+
+    private fun runSalesforceInitialLoadForUnderenhet(snapshotDate: LocalDate) {
+        try {
+            val existing =
+                PostgresDatabase.getSalesforceInitialLoadProgress(
+                    snapshotDate,
+                    OrgType.UNDERENHET,
+                )
+
+            var lastOrgNumber =
+                existing?.lastOrgNumber
+
+            PostgresDatabase.startSalesforceInitialLoad(
+                snapshotDate = snapshotDate,
+                orgType = OrgType.UNDERENHET,
+                lastOrgNumber = lastOrgNumber,
+            )
+
+            while (true) {
+                val batch =
+                    PostgresDatabase.fetchUnderenhetBatch(
+                        snapshotDate = snapshotDate,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = 100,
+                    )
+
+                if (batch.isEmpty()) {
+                    PostgresDatabase.markSalesforceInitialLoadDone(
+                        snapshotDate,
+                        OrgType.UNDERENHET,
+                    )
+
+                    return
+                }
+
+                val changes =
+                    batch.map { it.toNewChange() }
+
+                salesforceClient.postChanges(changes)
+
+                lastOrgNumber =
+                    batch.last().orgNumber
+
+                PostgresDatabase.updateSalesforceInitialLoadProgress(
+                    snapshotDate = snapshotDate,
+                    orgType = OrgType.UNDERENHET,
+                    lastOrgNumber = lastOrgNumber,
+                )
+
+                log.info {
+                    "Salesforce initial UNDERENHET load progressed to " +
+                        lastOrgNumber
+                }
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceInitialLoadFailed(
+                snapshotDate,
+                OrgType.ENHET,
+            )
+            throw e
+        }
+    }
+
+    val triggerSalesforceFullLoadHandler: HttpHandler = {
+        val today = LocalDate.now()
+
+        val snapshot =
+            PostgresDatabase.getEnhetsregisterSnapshot(today)
+
+        when {
+            snapshot == null ->
+                Response(Status.CONFLICT)
+                    .body("Today's snapshot does not exist")
+
+            snapshot.status != EnhetsregisterSnapshotStatus.READY ->
+                Response(Status.CONFLICT)
+                    .body(
+                        "Today's snapshot is not READY: " +
+                            snapshot.status,
+                    )
+
+            !salesforceFullLoadRunning.compareAndSet(
+                false,
+                true,
+            ) ->
+                Response(Status.CONFLICT)
+                    .body("Salesforce full load already running")
+
+            else -> {
+                runExecutor.submit {
+                    try {
+                        runSalesforceFullLoad(today)
+                    } catch (e: Exception) {
+                        log.error(e) {
+                            "Salesforce full load failed"
+                        }
+                    } finally {
+                        salesforceFullLoadRunning.set(false)
+                    }
+                }
+
+                Response(Status.ACCEPTED)
+                    .body("Salesforce full load started")
+            }
+        }
+    }
+
+    val testSending5EnhetAnd5Underenhet: HttpHandler = {
+        val today = LocalDate.now()
+
+        val snapshot =
+            PostgresDatabase.getEnhetsregisterSnapshot(today)
+
+        if (
+            snapshot == null ||
+            snapshot.status != EnhetsregisterSnapshotStatus.READY
+        ) {
+            Response(Status.CONFLICT)
+                .body("Today's snapshot is not READY")
+        } else {
+            val enheter =
+                PostgresDatabase.fetchEnhetBatch(
+                    snapshotDate = today,
+                    afterOrgNumber = null,
+                    limit = 5,
+                )
+
+            val underenheter =
+                PostgresDatabase.fetchUnderenhetBatch(
+                    snapshotDate = today,
+                    afterOrgNumber = null,
+                    limit = 5,
+                )
+
+            val changes =
+                enheter.map { it.toNewChange() } +
+                    underenheter.map { it.toNewChange() }
+
+            salesforceClient.postChanges(changes)
+
+            Response(OK)
+                .body(
+                    "Posted ${changes.size} organisations as a test" +
+                        "(5 ENHET + 5 UNDERENHET)",
+                )
+        }
+    }
 }
+
+enum class ChangeType {
+    NEW,
+    UPDATED,
+    REMOVED,
+}
+
+enum class OrgType {
+    ENHET,
+    UNDERENHET,
+}
+
+data class OrganisationChange(
+    val orgNumber: String,
+    val orgType: OrgType,
+    val changeType: ChangeType,
+    val payloadHash: String?,
+    val payload: String?,
+)
+
+fun OrganisationChange.toSalesforceMessage(): KafkaMessage =
+    when (changeType) {
+        ChangeType.NEW,
+        ChangeType.UPDATED,
+        -> {
+            val payload =
+                requireNotNull(payload) {
+                    "Payload is required for $changeType"
+                }
+
+            val payloadHash =
+                requireNotNull(payloadHash) {
+                    "Payload hash is required for $changeType"
+                }
+
+            KafkaMessage(
+                CRM_Topic__c = orgTopic,
+                CRM_Key__c =
+                    "$orgNumber#${orgType.name}#$payloadHash",
+                CRM_Value__c = payload.encodeB64(),
+            )
+        }
+
+        ChangeType.REMOVED -> {
+            KafkaMessage(
+                CRM_Topic__c = tombstoneTopic,
+                CRM_Key__c = orgNumber,
+                CRM_Value__c = orgNumber,
+            )
+        }
+    }
+
+fun EnhetSnapshot.toNewChange() =
+    OrganisationChange(
+        orgNumber = orgNumber,
+        orgType = OrgType.ENHET,
+        changeType = ChangeType.NEW,
+        payloadHash = payloadHash,
+        payload = payload,
+    )
+
+fun UnderenhetSnapshot.toNewChange() =
+    OrganisationChange(
+        orgNumber = orgNumber,
+        orgType = OrgType.UNDERENHET,
+        changeType = ChangeType.NEW,
+        payloadHash = payloadHash,
+        payload = payload,
+    )

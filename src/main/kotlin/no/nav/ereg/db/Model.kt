@@ -1,3 +1,5 @@
+import no.nav.ereg.Application
+import no.nav.ereg.OrgType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.date
@@ -8,6 +10,7 @@ import java.time.LocalDate
 const val ENHETSREGISTER_SNAPSHOT = "enhetsregister_snapshot"
 const val ENHET_SNAPSHOT = "enhet_snapshot"
 const val UNDERENHET_SNAPSHOT = "underenhet_snapshot"
+const val SALESFORCE_INITIAL_LOAD_PROGRESS = "salesforce_initial_load_progress"
 
 object EnhetsregisterSnapshotTable : Table(ENHETSREGISTER_SNAPSHOT) {
     val snapshotDate = date("snapshot_date")
@@ -65,6 +68,21 @@ object UnderenhetSnapshotTable : Table(UNDERENHET_SNAPSHOT) {
         PrimaryKey(
             snapshotDate,
             orgNumber,
+        )
+}
+
+object SalesforceInitialLoadProgressTable : Table(SALESFORCE_INITIAL_LOAD_PROGRESS) {
+    val snapshotDate = date("snapshot_date")
+    val orgType = varchar("org_type", 20)
+    val status = varchar("status", 20)
+    val lastOrgNumber = varchar("last_org_number", 20).nullable()
+    val startedAt = timestamp("started_at")
+    val completedAt = timestamp("completed_at").nullable()
+
+    override val primaryKey =
+        PrimaryKey(
+            snapshotDate,
+            orgType,
         )
 }
 
@@ -134,4 +152,40 @@ fun ResultRow.toUnderenhetSnapshot() =
         registrationDate = this[UnderenhetSnapshotTable.registrationDate],
         payloadHash = this[UnderenhetSnapshotTable.payloadHash],
         payload = this[UnderenhetSnapshotTable.payload],
+    )
+
+enum class SalesforceInitialLoadStatus {
+    NOT_STARTED,
+    IN_PROGRESS,
+    FAILED,
+    DONE,
+}
+
+data class SalesforceInitialLoadProgress(
+    val snapshotDate: LocalDate,
+    val orgType: OrgType,
+    val status: SalesforceInitialLoadStatus,
+    val lastOrgNumber: String?,
+    val startedAt: Instant,
+    val completedAt: Instant?,
+)
+
+fun ResultRow.toSalesforceInitialLoadProgress() =
+    SalesforceInitialLoadProgress(
+        snapshotDate =
+            this[SalesforceInitialLoadProgressTable.snapshotDate],
+        orgType =
+            OrgType.valueOf(
+                this[SalesforceInitialLoadProgressTable.orgType],
+            ),
+        status =
+            SalesforceInitialLoadStatus.valueOf(
+                this[SalesforceInitialLoadProgressTable.status],
+            ),
+        lastOrgNumber =
+            this[SalesforceInitialLoadProgressTable.lastOrgNumber],
+        startedAt =
+            this[SalesforceInitialLoadProgressTable.startedAt],
+        completedAt =
+            this[SalesforceInitialLoadProgressTable.completedAt],
     )

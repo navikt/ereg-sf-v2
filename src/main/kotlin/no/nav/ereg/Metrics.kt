@@ -20,38 +20,7 @@ object Metrics {
 
     val apiCalls: Counter = registerLabelCounter("api_calls", "ingress")
 
-    fun registerForwardedCallHistogram(name: String): Histogram =
-        Histogram
-            .build()
-            .name(name)
-            .help(name)
-            .labelNames("targetApp", "tokenType", "status")
-            .buckets(50.0, 100.0, 200.0, 300.0, 400.0, 500.0, 1000.0, 2000.0, 4000.0)
-            .register()
-
-    fun registerSummary(name: String) =
-        Summary
-            .build()
-            .name(name)
-            .help(name)
-            .register()
-
-    fun registerGauge(name: String) =
-        Gauge
-            .build()
-            .name(name)
-            .help(name)
-            .register()
-
-    fun registerLabelGauge(
-        name: String,
-        vararg labels: String,
-    ) = Gauge
-        .build()
-        .name(name)
-        .help(name)
-        .labelNames(*labels)
-        .register()
+    val publishedOrgs: Counter = registerLabelCounter("published_orgs", "type", "status")
 
     fun registerLabelCounter(
         name: String,
