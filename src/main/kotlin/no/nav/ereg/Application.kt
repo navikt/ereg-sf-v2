@@ -19,6 +19,7 @@ import no.nav.sf.keytool.db.PostgresDatabase
 import okhttp3.OkHttpClient
 import org.http4k.client.OkHttp
 import org.http4k.core.BodyMode
+import org.http4k.core.Filter
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.Request
@@ -87,22 +88,35 @@ class Application {
 
     fun apiServer(port: Int): Http4kServer = api().asServer(Netty(port))
 
+    private val accessLog =
+        Filter { next ->
+            { request ->
+                log.info {
+                    "HTTP ${request.method} ${request.uri}"
+                }
+
+                next(request)
+            }
+        }
+
     fun api(): HttpHandler =
-        routes(
-            "/internal/isAlive" bind Method.GET to { Response(OK) },
-            "/internal/isReady" bind Method.GET to { Response(OK) },
-            "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
-            "/internal/hello" bind Method.GET to { Response(OK).body("Hello") },
-            "/internal/secrethello" authbind Method.GET to { Response(OK).body("Secret Hello") },
-            "/internal/files" bind Method.GET to filesHandler(File("/tmp/files")),
-            "/internal/files/{path:.*}" bind Method.GET to filesHandler(File("/tmp/files")),
-            "/internal/clearDb" bind Method.GET to clearDbHandler,
-            "/internal/initDb" bind Method.GET to initDbHandler,
-            "/internal/triggerRun" bind Method.GET to triggerRunHandler,
-            "/internal/status" bind Method.GET to { runResponse(LocalDate.now()) },
-            "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
-            "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
-            "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
+        accessLog(
+            routes(
+                "/internal/isAlive" bind Method.GET to { Response(OK) },
+                "/internal/isReady" bind Method.GET to { Response(OK) },
+                "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
+                "/internal/hello" bind Method.GET to { Response(OK).body("Hello") },
+                "/internal/secrethello" authbind Method.GET to { Response(OK).body("Secret Hello") },
+                "/internal/files" bind Method.GET to filesHandler(File("/tmp/files")),
+                "/internal/files/{path:.*}" bind Method.GET to filesHandler(File("/tmp/files")),
+                "/internal/clearDb" bind Method.GET to clearDbHandler,
+                "/internal/initDb" bind Method.GET to initDbHandler,
+                "/internal/triggerRun" bind Method.GET to triggerRunHandler,
+                "/internal/status" bind Method.GET to { runResponse(LocalDate.now()) },
+                "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
+                "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
+                "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
+            ),
         )
 
     /**
