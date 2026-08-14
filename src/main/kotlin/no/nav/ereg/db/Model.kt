@@ -12,6 +12,7 @@ const val ENHET_SNAPSHOT = "enhet_snapshot"
 const val UNDERENHET_SNAPSHOT = "underenhet_snapshot"
 const val SALESFORCE_INITIAL_LOAD_PROGRESS = "salesforce_initial_load_progress"
 const val SALESFORCE_DIFF_PROGRESS = "salesforce_diff_progress"
+const val SALESFORCE_DIFF_ORGANISATION = "salesforce_diff_organisation"
 
 object EnhetsregisterSnapshotTable : Table(ENHETSREGISTER_SNAPSHOT) {
     val snapshotDate = date("snapshot_date")
@@ -107,6 +108,20 @@ object SalesforceDiffProgressTable : Table(SALESFORCE_DIFF_PROGRESS) {
             snapshotDate,
             orgType,
             phase,
+        )
+}
+
+object SalesforceDiffOrganisationTable : Table(SALESFORCE_DIFF_ORGANISATION) {
+    val snapshotDate = date("snapshot_date")
+    val orgNumber = varchar("org_number", 20)
+    val orgType = varchar("org_type", 20)
+    val changeType = varchar("change_type", 20)
+
+    override val primaryKey =
+        PrimaryKey(
+            snapshotDate,
+            orgNumber,
+            orgType,
         )
 }
 

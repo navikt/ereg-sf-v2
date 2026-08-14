@@ -160,7 +160,7 @@
             font-size: 12px;
         }
 
-        /* STATUS --------------------------------------------------------- */
+        /* STATUS */
 
         .status-grid {
             display: grid;
@@ -322,6 +322,26 @@
             border: 1px solid var(--border);
             border-radius: 7px;
             background: var(--surface);
+
+            cursor: pointer;
+            transition:
+                    border-color 0.15s ease,
+                    background 0.15s ease,
+                    transform 0.05s ease;
+        }
+
+        .change-item:hover {
+            border-color: var(--blue);
+            background: var(--blue-soft);
+        }
+
+        .change-item:active {
+            transform: translateY(1px);
+        }
+
+        .change-item.selected {
+            border-color: var(--blue);
+            background: var(--blue-soft);
         }
 
         .change-item-label {
@@ -362,7 +382,92 @@
                     monospace;
         }
 
-        /* LOOKUP --------------------------------------------------------- */
+        /* CHANGE LIST */
+
+        .change-list-container {
+            display: none;
+            margin-top: 12px;
+
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+
+            background: var(--surface);
+        }
+
+        .change-list-container.visible {
+            display: block;
+        }
+
+        .change-list-header {
+            padding: 10px 12px;
+
+            background: var(--surface-soft);
+            border-bottom: 1px solid var(--border);
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+
+            font-size: 11px;
+        }
+
+        .change-list-title {
+            font-weight: 700;
+        }
+
+        .change-list-meta {
+            color: var(--muted);
+        }
+
+        .change-list {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .change-list-status {
+            padding: 18px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .change-org {
+            width: 100%;
+
+            border: 0;
+            border-bottom: 1px solid var(--border);
+
+            background: white;
+
+            padding: 8px 12px;
+
+            text-align: left;
+
+            font-family:
+                    ui-monospace,
+                    SFMono-Regular,
+                    Menlo,
+                    Monaco,
+                    Consolas,
+                    monospace;
+
+            font-size: 12px;
+            color: var(--blue);
+
+            cursor: pointer;
+        }
+
+        .change-org:last-child {
+            border-bottom: 0;
+        }
+
+        .change-org:hover {
+            background: var(--blue-soft);
+        }
+
+        /* LOOKUP */
 
         .lookup-card {
             background: var(--surface);
@@ -733,9 +838,7 @@
 
 <main>
 
-    <!-- ============================================================= -->
-    <!-- STATUS                                                        -->
-    <!-- ============================================================= -->
+    <!-- STATUS -->
 
     <section>
 
@@ -758,7 +861,7 @@
 
         <div class="status-grid">
 
-            <!-- TODAY ------------------------------------------------ -->
+            <!-- TODAY -->
 
             <div class="status-card">
 
@@ -863,7 +966,7 @@
             </div>
 
 
-            <!-- YESTERDAY -------------------------------------------- -->
+            <!-- YESTERDAY -->
 
             <div class="status-card">
 
@@ -972,9 +1075,7 @@
     </section>
 
 
-    <!-- ============================================================= -->
-    <!-- ORGANISATION LOOKUP                                           -->
-    <!-- ============================================================= -->
+    <!-- ORGANISATION LOOKUP -->
 
     <section>
 
@@ -1042,7 +1143,7 @@
                     style="display: none;"
             >
 
-                <!-- TODAY -------------------------------------------- -->
+                <!-- TODAY -->
 
                 <div class="snapshot-panel">
 
@@ -1074,7 +1175,7 @@
                 </div>
 
 
-                <!-- YESTERDAY --------------------------------------- -->
+                <!-- YESTERDAY -->
 
                 <div class="snapshot-panel">
 
@@ -1121,10 +1222,6 @@
 
 <script>
 
-    /*
-     * API endpoints
-     */
-
     const STATUS_TODAY_URL =
         "/internal/status";
 
@@ -1132,14 +1229,12 @@
         "/internal/statusYesterday";
 
 
-    /*
-     * Date helpers
-     */
-
     function todayDate() {
+
         return new Date()
             .toISOString()
             .slice(0, 10);
+
     }
 
 
@@ -1154,12 +1249,9 @@
         return date
             .toISOString()
             .slice(0, 10);
+
     }
 
-
-    /*
-     * General helpers
-     */
 
     function escapeHtml(value) {
 
@@ -1176,6 +1268,7 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+
     }
 
 
@@ -1190,12 +1283,11 @@
 
         return Number(value)
             .toLocaleString("en-US");
+
     }
 
 
-    /*
-     * Status rendering
-     */
+    /* STATUS ---------------------------------------------------------- */
 
     function statusClass(status) {
 
@@ -1212,7 +1304,9 @@
 
             default:
                 return "status-not-run";
+
         }
+
     }
 
 
@@ -1229,63 +1323,83 @@
             status
                 ? status.replaceAll("_", " ")
                 : "NOT RUN";
+
     }
 
 
+    /*
+     * The counters in the dashboard are clickable.
+     */
+
     function renderChangeItem(
         label,
-        value
+        value,
+        snapshotDate,
+        orgType,
+        changeType,
+        parentContainer
     ) {
 
-        return `
-            <div class="change-item">
+        const item =
+            document.createElement("div");
 
-                <div class="change-item-label">
-                    ${escapeHtml(label)}
-                </div>
+        item.className =
+            "change-item";
 
-                <div class="change-item-value">
-                    ${formatNumber(value)}
-                </div>
+        item.innerHTML = `
+            <div class="change-item-label">
+                ${escapeHtml(label)}
+            </div>
 
+            <div class="change-item-value">
+                ${formatNumber(value)}
             </div>
         `;
+
+
+        item.addEventListener(
+            "click",
+            () => {
+
+                if (!value || Number(value) === 0) {
+                    return;
+                }
+
+                loadChangeOrganisations(
+                    snapshotDate,
+                    orgType,
+                    changeType,
+                    parentContainer,
+                    item
+                );
+
+            }
+        );
+
+
+        parentContainer.appendChild(item);
+
+        return item;
+
     }
 
 
     function renderDiffType(
         container,
         name,
-        data
+        data,
+        snapshotDate
     ) {
 
         if (!data) {
 
-            container.innerHTML += `
-                <div class="type-status">
+            const section =
+                document.createElement("div");
 
-                    <div class="type-status-header">
+            section.className =
+                "type-status";
 
-                        <div class="type-name">
-                            ${escapeHtml(name)}
-                        </div>
-
-                        <div class="type-status-label">
-                            NOT STARTED
-                        </div>
-
-                    </div>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML += `
-            <div class="type-status">
-
+            section.innerHTML = `
                 <div class="type-status-header">
 
                     <div class="type-name">
@@ -1293,51 +1407,136 @@
                     </div>
 
                     <div class="type-status-label">
-                        ${escapeHtml(
-            data.status || "NOT_STARTED"
-        )}
+                        NOT STARTED
                     </div>
 
                 </div>
+            `;
 
+            container.appendChild(section);
 
-                <div class="change-grid">
-
-                    ${renderChangeItem(
-            "New",
-            data.new
-        )}
-
-                    ${renderChangeItem(
-            "Updated",
-            data.updated
-        )}
-
-                    ${renderChangeItem(
-            "Removed",
-            data.removed
-        )}
-
-                </div>
-
-
-                ${
-            data.lastOrgNumber
-                ? `
-                            <div class="cursor">
-                                Cursor:
-                                <span>
-                                    ${escapeHtml(
-                    data.lastOrgNumber
-                )}
-                                </span>
-                            </div>
-                          `
-                : ""
+            return;
         }
 
-            </div>
-        `;
+
+        const section =
+            document.createElement("div");
+
+        section.className =
+            "type-status";
+
+
+        const header =
+            document.createElement("div");
+
+        header.className =
+            "type-status-header";
+
+
+        const title =
+            document.createElement("div");
+
+        title.className =
+            "type-name";
+
+        title.textContent =
+            name;
+
+
+        const status =
+            document.createElement("div");
+
+        status.className =
+            "type-status-label";
+
+        status.textContent =
+            data.status || "NOT_STARTED";
+
+
+        header.appendChild(title);
+        header.appendChild(status);
+
+        section.appendChild(header);
+
+
+        const changeGrid =
+            document.createElement("div");
+
+        changeGrid.className =
+            "change-grid";
+
+
+        renderChangeItem(
+            "New",
+            data.new,
+            snapshotDate,
+            name,
+            "NEW",
+            changeGrid
+        );
+
+        renderChangeItem(
+            "Updated",
+            data.updated,
+            snapshotDate,
+            name,
+            "UPDATED",
+            changeGrid
+        );
+
+        renderChangeItem(
+            "Removed",
+            data.removed,
+            snapshotDate,
+            name,
+            "REMOVED",
+            changeGrid
+        );
+
+
+        section.appendChild(
+            changeGrid
+        );
+
+
+        if (data.lastOrgNumber) {
+
+            const cursor =
+                document.createElement("div");
+
+            cursor.className =
+                "cursor";
+
+            cursor.innerHTML = `
+                Cursor:
+                <span>
+                    ${escapeHtml(
+                data.lastOrgNumber
+            )}
+                </span>
+            `;
+
+            section.appendChild(cursor);
+
+        }
+
+
+        const listContainer =
+            document.createElement("div");
+
+        listContainer.className =
+            "change-list-container";
+
+
+        section.appendChild(
+            listContainer
+        );
+
+
+        container.appendChild(
+            section
+        );
+
     }
 
 
@@ -1345,10 +1544,6 @@
         prefix,
         data
     ) {
-
-        /*
-         * Snapshot status
-         */
 
         document.getElementById(
             `${prefix}-date`
@@ -1372,6 +1567,10 @@
             );
 
 
+        /*
+         * Snapshot status
+         */
+
         renderStatusBadge(
             document.getElementById(
                 `${prefix}-status-badge`
@@ -1381,9 +1580,7 @@
 
 
         /*
-         * Daily operation status
-         *
-         * This is intentionally separate from snapshot status.
+         * Overall daily operation status.
          */
 
         renderStatusBadge(
@@ -1420,49 +1617,387 @@
             `;
 
             return;
+
         }
 
 
-        diffContainer.innerHTML = `
-            <div class="type-status">
+        const header =
+            document.createElement("div");
 
-                <div class="type-status-header">
+        header.className =
+            "type-status";
 
-                    <div class="type-name">
-                        Salesforce changes
-                    </div>
 
-                    <div class="type-status-label">
-                        ${escapeHtml(
+        header.innerHTML = `
+            <div class="type-status-header">
+
+                <div class="type-name">
+                    Salesforce changes
+                </div>
+
+                <div class="type-status-label">
+                    ${escapeHtml(
             diff.status ||
             "NOT_STARTED"
         )}
-                    </div>
-
                 </div>
 
             </div>
         `;
 
 
+        diffContainer.appendChild(
+            header
+        );
+
+
         renderDiffType(
             diffContainer,
             "ENHET",
-            diff.enhet
+            diff.enhet,
+            data.date
         );
 
 
         renderDiffType(
             diffContainer,
             "UNDERENHET",
-            diff.underenhet
+            diff.underenhet,
+            data.date
         );
+
     }
 
 
-    /*
-     * Status API
-     */
+    /* CHANGE ORGANISATION LIST --------------------------------------- */
+
+    async function loadChangeOrganisations(
+        snapshotDate,
+        orgType,
+        changeType,
+        sectionContainer,
+        clickedItem
+    ) {
+
+        /*
+         * The clicked item is inside the section's change-grid.
+         * Find the list container associated with this type.
+         */
+
+        const section =
+            clickedItem.closest(
+                ".type-status"
+            );
+
+        const listContainer =
+            section.querySelector(
+                ".change-list-container"
+            );
+
+
+        /*
+         * Clicking the same square collapses it.
+         */
+
+        if (
+            listContainer.classList.contains(
+                "visible"
+            )
+        ) {
+
+            listContainer.classList.remove(
+                "visible"
+            );
+
+            clickedItem.classList.remove(
+                "selected"
+            );
+
+            return;
+        }
+
+
+        /*
+         * Close another list in the same type.
+         */
+
+        section
+            .querySelectorAll(
+                ".change-item"
+            )
+            .forEach(item => {
+
+                item.classList.remove(
+                    "selected"
+                );
+
+            });
+
+
+        clickedItem.classList.add(
+            "selected"
+        );
+
+
+        listContainer.classList.add(
+            "visible"
+        );
+
+
+        listContainer.innerHTML = `
+            <div class="change-list-header">
+
+                <div class="change-list-title">
+                    ${escapeHtml(
+            orgType
+        )} · ${escapeHtml(
+            changeType
+        )}
+                </div>
+
+                <div class="change-list-meta">
+                    Loading...
+                </div>
+
+            </div>
+
+            <div class="change-list">
+                <div class="change-list-status">
+                    Loading organisations...
+                </div>
+            </div>
+        `;
+
+
+        try {
+
+            const url =
+                "/internal/gui/api/diff-organisations" +
+                `?date=${encodeURIComponent(
+                    snapshotDate
+                )}` +
+                `&type=${encodeURIComponent(
+                    orgType
+                )}` +
+                `&changeType=${encodeURIComponent(
+                    changeType
+                )}`;
+
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            const rows =
+                await response.json();
+
+
+            renderChangeOrganisationList(
+                listContainer,
+                rows,
+                snapshotDate,
+                orgType,
+                changeType
+            );
+
+        } catch (error) {
+
+            console.error(
+                "Could not load changed organisations",
+                error
+            );
+
+
+            listContainer.innerHTML = `
+                <div class="change-list-header">
+
+                    <div class="change-list-title">
+                        ${escapeHtml(
+                orgType
+            )} · ${escapeHtml(
+                changeType
+            )}
+                    </div>
+
+                </div>
+
+                <div class="change-list">
+
+                    <div class="change-list-status">
+                        Could not load organisations:
+                        ${escapeHtml(
+                error.message
+            )}
+                    </div>
+
+                </div>
+            `;
+
+        }
+
+    }
+
+
+    function renderChangeOrganisationList(
+        container,
+        rows,
+        snapshotDate,
+        orgType,
+        changeType
+    ) {
+
+        const totalReturned =
+            Array.isArray(rows)
+                ? rows.length
+                : 0;
+
+
+        const header =
+            document.createElement(
+                "div"
+            );
+
+        header.className =
+            "change-list-header";
+
+
+        const title =
+            document.createElement(
+                "div"
+            );
+
+        title.className =
+            "change-list-title";
+
+        title.textContent =
+            `${orgType} · ${changeType}`;
+
+
+        const meta =
+            document.createElement(
+                "div"
+            );
+
+        meta.className =
+            "change-list-meta";
+
+        meta.textContent =
+            totalReturned === 500
+                ? "500 sampled"
+                : `${totalReturned} found`;
+
+
+        header.appendChild(title);
+        header.appendChild(meta);
+
+
+        const list =
+            document.createElement(
+                "div"
+            );
+
+        list.className =
+            "change-list";
+
+
+        if (
+            !Array.isArray(rows) ||
+            rows.length === 0
+        ) {
+
+            const empty =
+                document.createElement(
+                    "div"
+                );
+
+            empty.className =
+                "change-list-status";
+
+            empty.textContent =
+                "No organisations found.";
+
+            list.appendChild(
+                empty
+            );
+
+        } else {
+
+            rows.forEach(row => {
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+                button.className =
+                    "change-org";
+
+
+                button.textContent =
+                    row.orgNumber;
+
+
+                button.title =
+                    `Inspect ${row.orgNumber}`;
+
+
+                button.addEventListener(
+                    "click",
+                    () => {
+
+                        const input =
+                            document.getElementById(
+                                "org-number"
+                            );
+
+                        input.value =
+                            row.orgNumber;
+
+
+                        input.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center"
+                        });
+
+
+                        loadOrganisation();
+
+                    }
+                );
+
+
+                list.appendChild(
+                    button
+                );
+
+            });
+
+        }
+
+
+        container.innerHTML = "";
+
+        container.appendChild(header);
+        container.appendChild(list);
+
+    }
+
+
+    /* STATUS API ----------------------------------------------------- */
 
     async function loadStatus() {
 
@@ -1495,6 +2030,7 @@
                 throw new Error(
                     `Today status: HTTP ${todayResponse.status}`
                 );
+
             }
 
 
@@ -1503,6 +2039,7 @@
                 throw new Error(
                     `Yesterday status: HTTP ${yesterdayResponse.status}`
                 );
+
             }
 
 
@@ -1549,13 +2086,13 @@
                 "last-refresh"
             ).textContent =
                 "Status unavailable";
+
         }
+
     }
 
 
-    /*
-     * Organisation lookup
-     */
+    /* ORGANISATION LOOKUP -------------------------------------------- */
 
     async function loadOrganisation() {
 
@@ -1576,6 +2113,7 @@
             );
 
             return;
+
         }
 
 
@@ -1710,7 +2248,9 @@
             showLookupError(
                 error.message
             );
+
         }
+
     }
 
 
@@ -1728,16 +2268,16 @@
             throw new Error(
                 `Organisation lookup failed: HTTP ${response.status}`
             );
+
         }
 
 
         return response.json();
+
     }
 
 
-    /*
-     * Organisation comparison
-     */
+    /* ORGANISATION COMPARISON --------------------------------------- */
 
     function parsePayload(payload) {
 
@@ -1765,7 +2305,9 @@
         } catch (_) {
 
             return payload;
+
         }
+
     }
 
 
@@ -1774,7 +2316,9 @@
     ) {
 
         const parsed =
-            parsePayload(payload);
+            parsePayload(
+                payload
+            );
 
 
         if (
@@ -1787,6 +2331,7 @@
         return JSON.stringify(
             parsed
         );
+
     }
 
 
@@ -1795,7 +2340,9 @@
     ) {
 
         const parsed =
-            parsePayload(payload);
+            parsePayload(
+                payload
+            );
 
 
         if (
@@ -1810,6 +2357,7 @@
             null,
             2
         );
+
     }
 
 
@@ -1848,11 +2396,6 @@
         ];
 
 
-        /*
-         * If neither snapshot contains anything,
-         * show the empty state in both columns.
-         */
-
         if (
             todaySnapshots.length === 0 &&
             yesterdaySnapshots.length === 0
@@ -1875,6 +2418,7 @@
 
 
             return;
+
         }
 
 
@@ -1895,7 +2439,7 @@
 
 
             /*
-             * Neither day has this type.
+             * Neither snapshot has this type.
              */
 
             if (
@@ -1907,8 +2451,7 @@
 
 
             /*
-             * Exists on both days and has exactly
-             * the same JSON state.
+             * SAME
              */
 
             if (
@@ -1930,11 +2473,12 @@
                 );
 
                 return;
+
             }
 
 
             /*
-             * Exists today only.
+             * NEW
              */
 
             if (
@@ -1958,11 +2502,12 @@
 
 
                 return;
+
             }
 
 
             /*
-             * Exists yesterday only.
+             * REMOVED
              */
 
             if (
@@ -1986,11 +2531,12 @@
 
 
                 return;
+
             }
 
 
             /*
-             * Exists on both days but changed.
+             * UPDATED
              */
 
             renderOrganisationPanel(
@@ -2009,6 +2555,7 @@
             );
 
         });
+
     }
 
 
@@ -2057,6 +2604,7 @@
                 Same data as today
             </div>
         `;
+
     }
 
 
@@ -2131,6 +2679,7 @@
         element.appendChild(
             panel
         );
+
     }
 
 
@@ -2169,12 +2718,11 @@
         element.appendChild(
             panel
         );
+
     }
 
 
-    /*
-     * Lookup errors
-     */
+    /* LOOKUP ERRORS -------------------------------------------------- */
 
     function showLookupError(
         message
@@ -2192,6 +2740,7 @@
 
         element.style.display =
             "block";
+
     }
 
 
@@ -2205,12 +2754,11 @@
 
         element.style.display =
             "none";
+
     }
 
 
-    /*
-     * Events
-     */
+    /* EVENTS --------------------------------------------------------- */
 
     document
         .getElementById(
@@ -2243,16 +2791,16 @@
                 if (
                     event.key === "Enter"
                 ) {
+
                     loadOrganisation();
+
                 }
 
             }
         );
 
 
-    /*
-     * Initial load
-     */
+    /* Initial load */
 
     loadStatus();
 

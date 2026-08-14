@@ -113,6 +113,7 @@ class Application {
             "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
             "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
             "/internal/sendTodayChanges" bind Method.GET to sendTodayChangesHandler,
+            "/internal/gui/api/diff-organisations" bind Method.GET to diffOrganisationsHandler,
         )
     // )
 
@@ -126,6 +127,67 @@ class Application {
         val dir = File("/tmp/files")
         dir.mkdirs() // ensures /tmp/files exists
         apiServer(8080).start()
+    }
+
+    private val diffOrganisationsHandler: HttpHandler = { request ->
+
+        val date =
+            request
+                .query("date")
+                ?.let {
+                    runCatching {
+                        LocalDate.parse(it)
+                    }.getOrNull()
+                }
+
+        val orgType =
+            request
+                .query("type")
+                ?.let {
+                    runCatching {
+                        OrgType.valueOf(it.uppercase())
+                    }.getOrNull()
+                }
+
+        val changeType =
+            request
+                .query("changeType")
+                ?.let {
+                    runCatching {
+                        ChangeType.valueOf(it.uppercase())
+                    }.getOrNull()
+                }
+
+        when {
+            date == null ->
+                Response(Status.BAD_REQUEST)
+                    .body("Invalid or missing date. Expected yyyy-MM-dd")
+
+            orgType == null ->
+                Response(Status.BAD_REQUEST)
+                    .body("Invalid or missing type. Expected ENHET or UNDERENHET")
+
+            changeType == null ->
+                Response(Status.BAD_REQUEST)
+                    .body(
+                        "Invalid or missing changeType. " +
+                            "Expected NEW, UPDATED or REMOVED",
+                    )
+
+            else -> {
+                val rows =
+                    PostgresDatabase.getSalesforceDiffOrganisations(
+                        snapshotDate = date,
+                        orgType = orgType,
+                        changeType = changeType,
+                        limit = 500,
+                    )
+
+                Response(Status.OK)
+                    .header("Content-Type", "application/json")
+                    .body(gson.toJson(rows))
+            }
+        }
     }
 
     private val organisationLookupHandler: HttpHandler = { request ->
@@ -275,6 +337,7 @@ class Application {
         PostgresDatabase.createUnderenhetSnapshotTable(true)
         PostgresDatabase.createSalesforceInitialLoadProgressTable(true)
         PostgresDatabase.createSalesforceDiffProgressTable(true)
+        PostgresDatabase.createSalesforceDiffOrganisationTable(true)
         Response(OK).body("Tables recreated")
     }
 
@@ -283,8 +346,9 @@ class Application {
 //        PostgresDatabase.createEnhetSnapshotTable(false)
 //        PostgresDatabase.createUnderenhetSnapshotTable(false)
 //        PostgresDatabase.createSalesforceInitialLoadProgressTable(false)
-        PostgresDatabase.createSalesforceDiffProgressTable(false)
-        Response(OK).body("Table created")
+//        PostgresDatabase.createSalesforceDiffProgressTable(false)
+        PostgresDatabase.createSalesforceDiffOrganisationTable(false)
+        Response(OK).body("Table created!")
     }
 
     private fun extractName(json: String): String? =
@@ -1167,6 +1231,11 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
+
+                    PostgresDatabase.saveSalesforceDiffOrganisations(
+                        snapshotDate = today,
+                        changes = batchChanges,
+                    )
                 }
 
                 lastOrgNumber =
@@ -1288,6 +1357,11 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
+
+                    PostgresDatabase.saveSalesforceDiffOrganisations(
+                        snapshotDate = today,
+                        changes = batchChanges,
+                    )
                 }
 
                 lastOrgNumber =
@@ -1392,6 +1466,11 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
+
+                    PostgresDatabase.saveSalesforceDiffOrganisations(
+                        snapshotDate = today,
+                        changes = batchChanges,
+                    )
                 }
 
                 lastOrgNumber =
@@ -1496,6 +1575,11 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
+
+                    PostgresDatabase.saveSalesforceDiffOrganisations(
+                        snapshotDate = today,
+                        changes = batchChanges,
+                    )
                 }
 
                 lastOrgNumber =
@@ -1752,4 +1836,10 @@ data class OrganisationSnapshot(
     val name: String?,
     val registrationDate: String?,
     val payload: String,
+)
+
+data class DiffOrganisationRow(
+    val orgNumber: String,
+    val orgType: String,
+    val changeType: String,
 )

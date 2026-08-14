@@ -6,8 +6,10 @@ import EnhetSnapshot
 import EnhetSnapshotTable
 import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
+import SALESFORCE_DIFF_ORGANISATION
 import SALESFORCE_DIFF_PROGRESS
 import SALESFORCE_INITIAL_LOAD_PROGRESS
+import SalesforceDiffOrganisationTable
 import SalesforceDiffPhase
 import SalesforceDiffProgress
 import SalesforceDiffProgressTable
@@ -19,7 +21,10 @@ import UnderenhetSnapshotTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
+import no.nav.ereg.ChangeType
+import no.nav.ereg.DiffOrganisationRow
 import no.nav.ereg.OrgType
+import no.nav.ereg.OrganisationChange
 import no.nav.ereg.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -141,6 +146,21 @@ object PostgresDatabase {
 
             log.info { "Creating table $SALESFORCE_DIFF_PROGRESS" }
             SchemaUtils.create(SalesforceDiffProgressTable)
+        }
+    }
+
+    fun createSalesforceDiffOrganisationTable(dropFirst: Boolean = false) {
+        transaction {
+            if (dropFirst) {
+                log.info { "Dropping table $SALESFORCE_DIFF_ORGANISATION" }
+                val dropStatement =
+                    TransactionManager.current().connection.prepareStatement("DROP TABLE $SALESFORCE_DIFF_ORGANISATION", false)
+                dropStatement.executeUpdate()
+                log.info { "Drop performed" }
+            }
+
+            log.info { "Creating table $SALESFORCE_DIFF_ORGANISATION" }
+            SchemaUtils.create(SalesforceDiffOrganisationTable)
         }
     }
 
@@ -630,6 +650,10 @@ object PostgresDatabase {
                 UnderenhetSnapshotTable.snapshotDate notInList keepSnapshotDates
             }
 
+            SalesforceDiffOrganisationTable.deleteWhere {
+                SalesforceDiffOrganisationTable.snapshotDate notInList keepSnapshotDates
+            }
+
             // Small metadata/history tables: retain recent history
             EnhetsregisterSnapshotTable.deleteWhere {
                 EnhetsregisterSnapshotTable.snapshotDate less keepStatusSince
@@ -671,5 +695,53 @@ object PostgresDatabase {
                         (UnderenhetSnapshotTable.orgNumber eq orgNumber)
                 }.singleOrNull()
                 ?.toUnderenhetSnapshot()
+        }
+
+    fun saveSalesforceDiffOrganisations(
+        snapshotDate: LocalDate,
+        changes: Collection<OrganisationChange>,
+    ) {
+        if (changes.isEmpty()) return
+
+        transaction(database) {
+            SalesforceDiffOrganisationTable.batchInsert(changes) {
+                this[SalesforceDiffOrganisationTable.snapshotDate] =
+                    snapshotDate
+                this[SalesforceDiffOrganisationTable.orgNumber] =
+                    it.orgNumber
+                this[SalesforceDiffOrganisationTable.orgType] =
+                    it.orgType.name
+                this[SalesforceDiffOrganisationTable.changeType] =
+                    it.changeType.name
+            }
+        }
+    }
+
+    fun getSalesforceDiffOrganisations(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        changeType: ChangeType,
+        limit: Int = 500,
+    ): List<DiffOrganisationRow> =
+        transaction(database) {
+            SalesforceDiffOrganisationTable
+                .selectAll()
+                .where {
+                    (SalesforceDiffOrganisationTable.snapshotDate eq snapshotDate) and
+                        (SalesforceDiffOrganisationTable.orgType eq orgType.name) and
+                        (SalesforceDiffOrganisationTable.changeType eq changeType.name)
+                }.orderBy(
+                    SalesforceDiffOrganisationTable.orgNumber to SortOrder.ASC,
+                ).limit(limit)
+                .map {
+                    DiffOrganisationRow(
+                        orgNumber =
+                            it[SalesforceDiffOrganisationTable.orgNumber],
+                        orgType =
+                            it[SalesforceDiffOrganisationTable.orgType],
+                        changeType =
+                            it[SalesforceDiffOrganisationTable.changeType],
+                    )
+                }
         }
 }
