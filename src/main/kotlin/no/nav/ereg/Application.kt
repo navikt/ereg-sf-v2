@@ -41,7 +41,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-const val DB_BATCH_SIZE = 2_000
+const val PARSE_TO_DB_BATCH_SIZE = 2_000
+const val DIFF_BATCH_SIZE = 2_000
 const val ENHETER_URL =
     "https://data.brreg.no/enhetsregisteret/api/enheter/lastned"
 
@@ -70,8 +71,9 @@ class Application {
 
     val salesforceClient = SalesforceClient()
 
-    private val salesforceFullLoadRunning =
-        AtomicBoolean(false)
+    private val salesforceFullLoadRunning = AtomicBoolean(false)
+
+    private val diffRunning = AtomicBoolean(false)
 
     private val okHttpClient =
         OkHttp(
@@ -116,103 +118,7 @@ class Application {
             "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
             "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
             "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
-            "/internal/testSalesforceDiff" bind Method.GET to {
-                val today = LocalDate.now()
-                val yesterday = today.minusDays(1)
-
-                val todayRun = fetchRun(today)
-                val yesterdayRun = fetchRun(yesterday)
-
-                when {
-                    todayRun.status != TodayRunStatus.DONE ->
-                        Response(Status.CONFLICT)
-                            .body(
-                                "Today's snapshot is not DONE: " +
-                                    todayRun.status,
-                            )
-
-                    yesterdayRun.status != TodayRunStatus.DONE ->
-                        Response(Status.CONFLICT)
-                            .body(
-                                "Yesterday's snapshot is not DONE: " +
-                                    yesterdayRun.status,
-                            )
-
-                    else -> {
-                        val changes =
-                            PostgresDatabase.fetchOrganisationChanges(
-                                today = today,
-                                yesterday = yesterday,
-                            )
-
-                        val enhet =
-                            changes.filter {
-                                it.orgType == OrgType.ENHET
-                            }
-
-                        val underenhet =
-                            changes.filter {
-                                it.orgType == OrgType.UNDERENHET
-                            }
-
-                        val response =
-                            SalesforceDiffPreview(
-                                date = today,
-                                yesterday = yesterday,
-                                totalChanges = changes.size,
-                                enhet =
-                                    ChangeStats(
-                                        new =
-                                            enhet.count {
-                                                it.changeType == ChangeType.NEW
-                                            },
-                                        updated =
-                                            enhet.count {
-                                                it.changeType == ChangeType.UPDATED
-                                            },
-                                        removed =
-                                            enhet.count {
-                                                it.changeType == ChangeType.REMOVED
-                                            },
-                                    ),
-                                underenhet =
-                                    ChangeStats(
-                                        new =
-                                            underenhet.count {
-                                                it.changeType == ChangeType.NEW
-                                            },
-                                        updated =
-                                            underenhet.count {
-                                                it.changeType == ChangeType.UPDATED
-                                            },
-                                        removed =
-                                            underenhet.count {
-                                                it.changeType == ChangeType.REMOVED
-                                            },
-                                    ),
-                                sample =
-                                    changes
-                                        .take(20)
-                                        .map {
-                                            OrganisationChangePreview(
-                                                orgNumber = it.orgNumber,
-                                                orgType = it.orgType.name,
-                                                changeType = it.changeType.name,
-                                                name =
-                                                    it.payload
-                                                        ?.let(::extractName),
-                                            )
-                                        },
-                            )
-
-                        Response(OK)
-                            .header("Content-Type", "application/json")
-                            .body(
-                                gson.toJson(response),
-                            )
-                    }
-                }
-            },
+            "/internal/testDiff" bind Method.GET to testDiffHandler,
         )
     // )
 
@@ -226,6 +132,50 @@ class Application {
         val dir = File("/tmp/files")
         dir.mkdirs() // ensures /tmp/files exists
         apiServer(8080).start()
+    }
+
+    private val testDiffHandler: HttpHandler = {
+        val today = LocalDate.now()
+        val yesterday = today.minusDays(1)
+
+        val todayRun = fetchRun(today)
+        val yesterdayRun = fetchRun(yesterday)
+
+        when {
+            todayRun.status != TodayRunStatus.DONE ->
+                Response(Status.CONFLICT)
+                    .body("Today's snapshot is not DONE")
+
+            yesterdayRun.status != TodayRunStatus.DONE ->
+                Response(Status.CONFLICT)
+                    .body("Yesterday's snapshot is not DONE")
+
+            diffRunning.get() ->
+                Response(Status.CONFLICT)
+                    .body("Diff is already running")
+
+            else -> {
+                diffRunning.set(true)
+
+                runExecutor.submit {
+                    try {
+                        runSalesforceDiff(
+                            today = today,
+                            yesterday = yesterday,
+                        )
+                    } catch (e: Exception) {
+                        log.error(e) {
+                            "Salesforce diff failed"
+                        }
+                    } finally {
+                        diffRunning.set(false)
+                    }
+                }
+
+                Response(Status.ACCEPTED)
+                    .body("Diff started")
+            }
+        }
     }
 
     private val clearDbHandler: HttpHandler = {
@@ -258,7 +208,7 @@ class Application {
         input: InputStream,
         snapshotDate: LocalDate,
     ) {
-        val batch = ArrayList<EnhetSnapshot>(DB_BATCH_SIZE)
+        val batch = ArrayList<EnhetSnapshot>(PARSE_TO_DB_BATCH_SIZE)
         var count = 0
 
         JsonReader(
@@ -311,7 +261,7 @@ class Application {
 
                 count++
 
-                if (batch.size >= DB_BATCH_SIZE) {
+                if (batch.size >= PARSE_TO_DB_BATCH_SIZE) {
                     PostgresDatabase.saveEnhetBatch(
                         snapshotDate = snapshotDate,
                         rows = batch,
@@ -353,7 +303,7 @@ class Application {
         snapshotDate: LocalDate,
     ) {
         val batch =
-            ArrayList<UnderenhetSnapshot>(DB_BATCH_SIZE)
+            ArrayList<UnderenhetSnapshot>(PARSE_TO_DB_BATCH_SIZE)
 
         var count = 0
 
@@ -407,7 +357,7 @@ class Application {
 
                 count++
 
-                if (batch.size >= DB_BATCH_SIZE) {
+                if (batch.size >= PARSE_TO_DB_BATCH_SIZE) {
                     PostgresDatabase.saveUnderenhetBatch(
                         snapshotDate = snapshotDate,
                         rows = batch,
@@ -585,6 +535,7 @@ class Application {
                                         )
                                     },
                             ),
+                        "salesforceDiff" to diffProgress(date),
                     ),
                 ),
             )
@@ -915,6 +866,569 @@ class Application {
                 )
         }
     }
+
+    private fun runEnhetTodayDiff(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): Pair<List<OrganisationChange>, ChangeStats> {
+        val progress =
+            PostgresDatabase.getSalesforceDiffProgress(
+                today,
+                OrgType.ENHET,
+                SalesforceDiffPhase.TODAY,
+            )
+
+        var lastOrgNumber = progress?.lastOrgNumber
+        var stats =
+            ChangeStats(
+                new = progress?.newCount ?: 0,
+                updated = progress?.updatedCount ?: 0,
+                removed = progress?.removedCount ?: 0,
+            )
+
+        val changes = mutableListOf<OrganisationChange>()
+
+        PostgresDatabase.startSalesforceDiff(
+            snapshotDate = today,
+            orgType = OrgType.ENHET,
+            phase = SalesforceDiffPhase.TODAY,
+            existing = progress,
+        )
+
+        try {
+            while (true) {
+                val todayRows =
+                    PostgresDatabase.fetchEnhetBatch(
+                        snapshotDate = today,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = DIFF_BATCH_SIZE,
+                    )
+
+                if (todayRows.isEmpty()) {
+                    PostgresDatabase.markSalesforceDiffDone(
+                        today,
+                        OrgType.ENHET,
+                        SalesforceDiffPhase.TODAY,
+                    )
+
+                    return changes to stats
+                }
+
+                val yesterdayRows =
+                    PostgresDatabase.fetchEnhetRows(
+                        snapshotDate = yesterday,
+                        orgNumbers = todayRows.map { it.orgNumber },
+                    )
+
+                val yesterdayByOrg =
+                    yesterdayRows.associateBy { it.orgNumber }
+
+                val batchChanges =
+                    todayRows.mapNotNull { todayRow ->
+                        val yesterdayRow =
+                            yesterdayByOrg[todayRow.orgNumber]
+
+                        when {
+                            yesterdayRow == null -> {
+                                val change =
+                                    OrganisationChange(
+                                        orgNumber = todayRow.orgNumber,
+                                        orgType = OrgType.ENHET,
+                                        changeType = ChangeType.NEW,
+                                        payloadHash = todayRow.payloadHash,
+                                        payload = todayRow.payload,
+                                    )
+
+                                stats = stats.add(change)
+                                change
+                            }
+
+                            yesterdayRow.payloadHash != todayRow.payloadHash -> {
+                                val change =
+                                    OrganisationChange(
+                                        orgNumber = todayRow.orgNumber,
+                                        orgType = OrgType.ENHET,
+                                        changeType = ChangeType.UPDATED,
+                                        payloadHash = todayRow.payloadHash,
+                                        payload = todayRow.payload,
+                                    )
+
+                                stats = stats.add(change)
+                                change
+                            }
+
+                            else -> null
+                        }
+                    }
+
+                if (batchChanges.isNotEmpty()) {
+                    changes += batchChanges
+
+                    log.info {
+                        "ENHET diff progress " +
+                            "org=${todayRows.last().orgNumber}, " +
+                            "batchChanges=${batchChanges.size}, " +
+                            "new=${stats.new}, " +
+                            "updated=${stats.updated}"
+                    }
+                }
+
+                lastOrgNumber =
+                    todayRows.last().orgNumber
+
+                PostgresDatabase.updateSalesforceDiffProgress(
+                    snapshotDate = today,
+                    orgType = OrgType.ENHET,
+                    phase = SalesforceDiffPhase.TODAY,
+                    lastOrgNumber = lastOrgNumber,
+                    newCount = stats.new,
+                    updatedCount = stats.updated,
+                    removedCount = stats.removed,
+                )
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceDiffFailed(
+                today,
+                OrgType.ENHET,
+                SalesforceDiffPhase.TODAY,
+            )
+            throw e
+        }
+    }
+
+    private fun runUnderenhetTodayDiff(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): Pair<List<OrganisationChange>, ChangeStats> {
+        val progress =
+            PostgresDatabase.getSalesforceDiffProgress(
+                today,
+                OrgType.UNDERENHET,
+                SalesforceDiffPhase.TODAY,
+            )
+
+        var lastOrgNumber = progress?.lastOrgNumber
+        var stats =
+            ChangeStats(
+                new = progress?.newCount ?: 0,
+                updated = progress?.updatedCount ?: 0,
+                removed = progress?.removedCount ?: 0,
+            )
+
+        val changes = mutableListOf<OrganisationChange>()
+
+        PostgresDatabase.startSalesforceDiff(
+            snapshotDate = today,
+            orgType = OrgType.UNDERENHET,
+            phase = SalesforceDiffPhase.TODAY,
+            existing = progress,
+        )
+
+        try {
+            while (true) {
+                val todayRows =
+                    PostgresDatabase.fetchUnderenhetBatch(
+                        snapshotDate = today,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = DIFF_BATCH_SIZE,
+                    )
+
+                if (todayRows.isEmpty()) {
+                    PostgresDatabase.markSalesforceDiffDone(
+                        today,
+                        OrgType.UNDERENHET,
+                        SalesforceDiffPhase.TODAY,
+                    )
+
+                    return changes to stats
+                }
+
+                val yesterdayRows =
+                    PostgresDatabase.fetchUnderenhetRows(
+                        snapshotDate = yesterday,
+                        orgNumbers = todayRows.map { it.orgNumber },
+                    )
+
+                val yesterdayByOrg =
+                    yesterdayRows.associateBy { it.orgNumber }
+
+                val batchChanges =
+                    todayRows.mapNotNull { todayRow ->
+                        val yesterdayRow =
+                            yesterdayByOrg[todayRow.orgNumber]
+
+                        when {
+                            yesterdayRow == null -> {
+                                val change =
+                                    OrganisationChange(
+                                        orgNumber = todayRow.orgNumber,
+                                        orgType = OrgType.UNDERENHET,
+                                        changeType = ChangeType.NEW,
+                                        payloadHash = todayRow.payloadHash,
+                                        payload = todayRow.payload,
+                                    )
+
+                                stats = stats.add(change)
+                                change
+                            }
+
+                            yesterdayRow.payloadHash != todayRow.payloadHash -> {
+                                val change =
+                                    OrganisationChange(
+                                        orgNumber = todayRow.orgNumber,
+                                        orgType = OrgType.UNDERENHET,
+                                        changeType = ChangeType.UPDATED,
+                                        payloadHash = todayRow.payloadHash,
+                                        payload = todayRow.payload,
+                                    )
+
+                                stats = stats.add(change)
+                                change
+                            }
+
+                            else -> null
+                        }
+                    }
+
+                if (batchChanges.isNotEmpty()) {
+                    changes += batchChanges
+
+                    log.info {
+                        "UNDERENHET diff progress " +
+                            "org=${todayRows.last().orgNumber}, " +
+                            "batchChanges=${batchChanges.size}, " +
+                            "new=${stats.new}, " +
+                            "updated=${stats.updated}"
+                    }
+                }
+
+                lastOrgNumber =
+                    todayRows.last().orgNumber
+
+                PostgresDatabase.updateSalesforceDiffProgress(
+                    snapshotDate = today,
+                    orgType = OrgType.UNDERENHET,
+                    phase = SalesforceDiffPhase.TODAY,
+                    lastOrgNumber = lastOrgNumber,
+                    newCount = stats.new,
+                    updatedCount = stats.updated,
+                    removedCount = stats.removed,
+                )
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceDiffFailed(
+                today,
+                OrgType.UNDERENHET,
+                SalesforceDiffPhase.TODAY,
+            )
+            throw e
+        }
+    }
+
+    private fun runEnhetRemovedDiff(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): Pair<List<OrganisationChange>, ChangeStats> {
+        val progress =
+            PostgresDatabase.getSalesforceDiffProgress(
+                today,
+                OrgType.ENHET,
+                SalesforceDiffPhase.REMOVED,
+            )
+
+        var lastOrgNumber = progress?.lastOrgNumber
+        var stats =
+            ChangeStats(
+                new = progress?.newCount ?: 0,
+                updated = progress?.updatedCount ?: 0,
+                removed = progress?.removedCount ?: 0,
+            )
+
+        val changes = mutableListOf<OrganisationChange>()
+
+        PostgresDatabase.startSalesforceDiff(
+            snapshotDate = today,
+            orgType = OrgType.ENHET,
+            phase = SalesforceDiffPhase.REMOVED,
+            existing = progress,
+        )
+
+        try {
+            while (true) {
+                val yesterdayRows =
+                    PostgresDatabase.fetchEnhetBatch(
+                        snapshotDate = yesterday,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = DIFF_BATCH_SIZE,
+                    )
+
+                if (yesterdayRows.isEmpty()) {
+                    PostgresDatabase.markSalesforceDiffDone(
+                        today,
+                        OrgType.ENHET,
+                        SalesforceDiffPhase.REMOVED,
+                    )
+
+                    return changes to stats
+                }
+
+                val todayRows =
+                    PostgresDatabase.fetchEnhetRows(
+                        snapshotDate = today,
+                        orgNumbers = yesterdayRows.map { it.orgNumber },
+                    )
+
+                val todayOrgNumbers =
+                    todayRows
+                        .asSequence()
+                        .map { it.orgNumber }
+                        .toSet()
+
+                val batchChanges =
+                    yesterdayRows
+                        .filter {
+                            it.orgNumber !in todayOrgNumbers
+                        }.map {
+                            OrganisationChange(
+                                orgNumber = it.orgNumber,
+                                orgType = OrgType.ENHET,
+                                changeType = ChangeType.REMOVED,
+                                payloadHash = null,
+                                payload = null,
+                            )
+                        }
+
+                batchChanges.forEach {
+                    stats = stats.add(it)
+                }
+
+                if (batchChanges.isNotEmpty()) {
+                    changes += batchChanges
+
+                    log.info {
+                        "ENHET removed diff progress " +
+                            "org=${yesterdayRows.last().orgNumber}, " +
+                            "batchChanges=${batchChanges.size}, " +
+                            "removed=${stats.removed}"
+                    }
+                }
+
+                lastOrgNumber =
+                    yesterdayRows.last().orgNumber
+
+                PostgresDatabase.updateSalesforceDiffProgress(
+                    snapshotDate = today,
+                    orgType = OrgType.ENHET,
+                    phase = SalesforceDiffPhase.REMOVED,
+                    lastOrgNumber = lastOrgNumber,
+                    newCount = stats.new,
+                    updatedCount = stats.updated,
+                    removedCount = stats.removed,
+                )
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceDiffFailed(
+                today,
+                OrgType.ENHET,
+                SalesforceDiffPhase.REMOVED,
+            )
+            throw e
+        }
+    }
+
+    private fun runUnderenhetRemovedDiff(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): Pair<List<OrganisationChange>, ChangeStats> {
+        val progress =
+            PostgresDatabase.getSalesforceDiffProgress(
+                today,
+                OrgType.UNDERENHET,
+                SalesforceDiffPhase.REMOVED,
+            )
+
+        var lastOrgNumber = progress?.lastOrgNumber
+        var stats =
+            ChangeStats(
+                new = progress?.newCount ?: 0,
+                updated = progress?.updatedCount ?: 0,
+                removed = progress?.removedCount ?: 0,
+            )
+
+        val changes = mutableListOf<OrganisationChange>()
+
+        PostgresDatabase.startSalesforceDiff(
+            snapshotDate = today,
+            orgType = OrgType.UNDERENHET,
+            phase = SalesforceDiffPhase.REMOVED,
+            existing = progress,
+        )
+
+        try {
+            while (true) {
+                val yesterdayRows =
+                    PostgresDatabase.fetchUnderenhetBatch(
+                        snapshotDate = yesterday,
+                        afterOrgNumber = lastOrgNumber,
+                        limit = DIFF_BATCH_SIZE,
+                    )
+
+                if (yesterdayRows.isEmpty()) {
+                    PostgresDatabase.markSalesforceDiffDone(
+                        today,
+                        OrgType.UNDERENHET,
+                        SalesforceDiffPhase.REMOVED,
+                    )
+
+                    return changes to stats
+                }
+
+                val todayRows =
+                    PostgresDatabase.fetchUnderenhetRows(
+                        snapshotDate = today,
+                        orgNumbers = yesterdayRows.map { it.orgNumber },
+                    )
+
+                val todayOrgNumbers =
+                    todayRows
+                        .asSequence()
+                        .map { it.orgNumber }
+                        .toSet()
+
+                val batchChanges =
+                    yesterdayRows
+                        .filter {
+                            it.orgNumber !in todayOrgNumbers
+                        }.map {
+                            OrganisationChange(
+                                orgNumber = it.orgNumber,
+                                orgType = OrgType.UNDERENHET,
+                                changeType = ChangeType.REMOVED,
+                                payloadHash = null,
+                                payload = null,
+                            )
+                        }
+
+                batchChanges.forEach {
+                    stats = stats.add(it)
+                }
+
+                if (batchChanges.isNotEmpty()) {
+                    changes += batchChanges
+
+                    log.info {
+                        "UNDERENHET removed diff progress " +
+                            "org=${yesterdayRows.last().orgNumber}, " +
+                            "batchChanges=${batchChanges.size}, " +
+                            "removed=${stats.removed}"
+                    }
+                }
+
+                lastOrgNumber =
+                    yesterdayRows.last().orgNumber
+
+                PostgresDatabase.updateSalesforceDiffProgress(
+                    snapshotDate = today,
+                    orgType = OrgType.UNDERENHET,
+                    phase = SalesforceDiffPhase.REMOVED,
+                    lastOrgNumber = lastOrgNumber,
+                    newCount = stats.new,
+                    updatedCount = stats.updated,
+                    removedCount = stats.removed,
+                )
+            }
+        } catch (e: Exception) {
+            PostgresDatabase.markSalesforceDiffFailed(
+                today,
+                OrgType.UNDERENHET,
+                SalesforceDiffPhase.REMOVED,
+            )
+            throw e
+        }
+    }
+
+    private fun runSalesforceDiff(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): DiffResult {
+        val (enhetTodayChanges, enhetTodayStats) =
+            runEnhetTodayDiff(today, yesterday)
+
+        val (enhetRemovedChanges, enhetRemovedStats) =
+            runEnhetRemovedDiff(today, yesterday)
+
+        val (underenhetTodayChanges, underenhetTodayStats) =
+            runUnderenhetTodayDiff(today, yesterday)
+
+        val (underenhetRemovedChanges, underenhetRemovedStats) =
+            runUnderenhetRemovedDiff(today, yesterday)
+
+        val changes =
+            enhetTodayChanges +
+                enhetRemovedChanges +
+                underenhetTodayChanges +
+                underenhetRemovedChanges
+
+        return DiffResult(
+            changes = changes,
+            enhet =
+                enhetTodayStats +
+                    enhetRemovedStats,
+            underenhet =
+                underenhetTodayStats +
+                    underenhetRemovedStats,
+        )
+    }
+
+    private fun diffProgress(date: LocalDate): Map<String, Any?> {
+        val progress =
+            OrgType.entries.associate { orgType ->
+                orgType.name.lowercase() to
+                    SalesforceDiffPhase.entries.associate { phase ->
+                        val value =
+                            PostgresDatabase.getSalesforceDiffProgress(
+                                date,
+                                orgType,
+                                phase,
+                            )
+
+                        phase.name.lowercase() to
+                            value?.let {
+                                mapOf(
+                                    "status" to it.status.name,
+                                    "lastOrgNumber" to it.lastOrgNumber,
+                                    "new" to it.newCount,
+                                    "updated" to it.updatedCount,
+                                    "removed" to it.removedCount,
+                                )
+                            }
+                    }
+            }
+        // Calculate "global" status for diff:
+        val statuses =
+            OrgType.entries.flatMap { orgType ->
+                SalesforceDiffPhase.entries.mapNotNull { phase ->
+                    PostgresDatabase
+                        .getSalesforceDiffProgress(
+                            date,
+                            orgType,
+                            phase,
+                        )?.status
+                }
+            }
+        val status =
+            when {
+                statuses.any { it == SalesforceDiffStatus.FAILED } -> SalesforceDiffStatus.FAILED
+                statuses.any { it == SalesforceDiffStatus.IN_PROGRESS } -> SalesforceDiffStatus.IN_PROGRESS
+                statuses.size == 4 && statuses.all { it == SalesforceDiffStatus.DONE } -> SalesforceDiffStatus.DONE
+                else -> SalesforceDiffStatus.NOT_STARTED
+            }
+
+        return mapOf(
+            "status" to status.name,
+            "phases" to progress,
+        )
+    }
 }
 
 enum class ChangeType {
@@ -986,24 +1500,36 @@ fun UnderenhetSnapshot.toNewChange() =
         payload = payload,
     )
 
-data class SalesforceDiffPreview(
-    val date: LocalDate,
-    val yesterday: LocalDate,
-    val totalChanges: Int,
+data class ChangeStats(
+    val new: Int = 0,
+    val updated: Int = 0,
+    val removed: Int = 0,
+) {
+    operator fun plus(other: ChangeStats) =
+        ChangeStats(
+            new = new + other.new,
+            updated = updated + other.updated,
+            removed = removed + other.removed,
+        )
+
+    fun add(change: OrganisationChange) =
+        when (change.changeType) {
+            ChangeType.NEW ->
+                copy(new = new + 1)
+
+            ChangeType.UPDATED ->
+                copy(updated = updated + 1)
+
+            ChangeType.REMOVED ->
+                copy(removed = removed + 1)
+        }
+}
+
+data class DiffResult(
+    val changes: List<OrganisationChange>,
     val enhet: ChangeStats,
     val underenhet: ChangeStats,
-    val sample: List<OrganisationChangePreview>,
-)
-
-data class ChangeStats(
-    val new: Int,
-    val updated: Int,
-    val removed: Int,
-)
-
-data class OrganisationChangePreview(
-    val orgNumber: String,
-    val orgType: String,
-    val changeType: String,
-    val name: String?,
-)
+) {
+    val total: Int
+        get() = changes.size
+}

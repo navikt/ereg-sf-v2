@@ -7,6 +7,8 @@ import EnhetSnapshotTable
 import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
 import SALESFORCE_INITIAL_LOAD_PROGRESS
+import SalesforceDiffPhase
+import SalesforceDiffProgress
 import SalesforceInitialLoadProgress
 import SalesforceInitialLoadProgressTable
 import UNDERENHET_SNAPSHOT
@@ -15,9 +17,7 @@ import UnderenhetSnapshotTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
-import no.nav.ereg.ChangeType
 import no.nav.ereg.OrgType
-import no.nav.ereg.OrganisationChange
 import no.nav.ereg.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -34,6 +34,7 @@ import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import toEnhetSnapshot
 import toEnhetsregisterSnapshot
+import toSalesforceDiffProgress
 import toSalesforceInitialLoadProgress
 import toUnderenhetSnapshot
 import java.time.Instant
@@ -429,111 +430,162 @@ object PostgresDatabase {
                 .map { it.toUnderenhetSnapshot() }
         }
 
-    fun fetchOrganisationChanges(
-        today: LocalDate,
-        yesterday: LocalDate,
-    ): List<OrganisationChange> =
+    fun getSalesforceDiffProgress(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        phase: SalesforceDiffPhase,
+    ): SalesforceDiffProgress? =
         transaction(database) {
-            val sql =
-                """
-                SELECT
-                    t.org_number,
-                    'ENHET' AS org_type,
-                    CASE
-                        WHEN y.org_number IS NULL THEN 'NEW'
-                        ELSE 'UPDATED'
-                    END AS change_type,
-                    t.payload_hash,
-                    t.payload
-                FROM enhet_snapshot t
-                LEFT JOIN enhet_snapshot y
-                    ON y.snapshot_date = '$yesterday'
-                   AND y.org_number = t.org_number
-                WHERE t.snapshot_date = '$today'
-                  AND (
-                        y.org_number IS NULL
-                        OR t.payload_hash <> y.payload_hash
-                  )
+            SalesforceDiffProgressTable
+                .selectAll()
+                .where {
+                    (SalesforceDiffProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceDiffProgressTable.orgType eq orgType.name) and
+                        (SalesforceDiffProgressTable.phase eq phase.name)
+                }.singleOrNull()
+                ?.toSalesforceDiffProgress()
+        }
 
-                UNION ALL
+    fun startSalesforceDiff(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        phase: SalesforceDiffPhase,
+        existing: SalesforceDiffProgress?,
+    ) {
+        if (
+            existing?.status == SalesforceDiffStatus.IN_PROGRESS
+        ) {
+            return
+        }
 
-                SELECT
-                    y.org_number,
-                    'ENHET' AS org_type,
-                    'REMOVED' AS change_type,
-                    NULL AS payload_hash,
-                    NULL AS payload
-                FROM enhet_snapshot y
-                LEFT JOIN enhet_snapshot t
-                    ON t.snapshot_date = '$today'
-                   AND t.org_number = y.org_number
-                WHERE y.snapshot_date = '$yesterday'
-                  AND t.org_number IS NULL
+        transaction(database) {
+            SalesforceDiffProgressTable.upsert(
+                keys =
+                    arrayOf(
+                        SalesforceDiffProgressTable.snapshotDate,
+                        SalesforceDiffProgressTable.orgType,
+                        SalesforceDiffProgressTable.phase,
+                    ),
+            ) {
+                it[SalesforceDiffProgressTable.snapshotDate] = snapshotDate
+                it[SalesforceDiffProgressTable.orgType] = orgType.name
+                it[SalesforceDiffProgressTable.phase] = phase.name
+                it[status] = SalesforceDiffStatus.IN_PROGRESS.name
 
-                UNION ALL
+                it[lastOrgNumber] =
+                    existing?.lastOrgNumber
 
-                SELECT
-                    t.org_number,
-                    'UNDERENHET' AS org_type,
-                    CASE
-                        WHEN y.org_number IS NULL THEN 'NEW'
-                        ELSE 'UPDATED'
-                    END AS change_type,
-                    t.payload_hash,
-                    t.payload
-                FROM underenhet_snapshot t
-                LEFT JOIN underenhet_snapshot y
-                    ON y.snapshot_date = '$yesterday'
-                   AND y.org_number = t.org_number
-                WHERE t.snapshot_date = '$today'
-                  AND (
-                        y.org_number IS NULL
-                        OR t.payload_hash <> y.payload_hash
-                  )
+                it[newCount] =
+                    existing?.newCount ?: 0
 
-                UNION ALL
+                it[updatedCount] =
+                    existing?.updatedCount ?: 0
 
-                SELECT
-                    y.org_number,
-                    'UNDERENHET' AS org_type,
-                    'REMOVED' AS change_type,
-                    NULL AS payload_hash,
-                    NULL AS payload
-                FROM underenhet_snapshot y
-                LEFT JOIN underenhet_snapshot t
-                    ON t.snapshot_date = '$today'
-                   AND t.org_number = y.org_number
-                WHERE y.snapshot_date = '$yesterday'
-                  AND t.org_number IS NULL
+                it[removedCount] =
+                    existing?.removedCount ?: 0
 
-                ORDER BY org_type, org_number
-                """.trimIndent()
+                it[startedAt] =
+                    existing?.startedAt ?: Instant.now()
 
-            val changes = mutableListOf<OrganisationChange>()
-
-            exec(sql) { resultSet ->
-                while (resultSet.next()) {
-                    changes +=
-                        OrganisationChange(
-                            orgNumber = resultSet.getString("org_number"),
-                            orgType =
-                                OrgType.valueOf(
-                                    resultSet.getString("org_type"),
-                                ),
-                            changeType =
-                                ChangeType.valueOf(
-                                    resultSet.getString("change_type"),
-                                ),
-                            payloadHash =
-                                resultSet.getString("payload_hash"),
-                            payload =
-                                resultSet.getString("payload"),
-                        )
-                }
-
-                Unit
+                it[completedAt] = null
             }
+        }
+    }
 
-            changes
+    fun updateSalesforceDiffProgress(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        phase: SalesforceDiffPhase,
+        lastOrgNumber: String,
+        newCount: Int,
+        updatedCount: Int,
+        removedCount: Int,
+    ) {
+        transaction(database) {
+            SalesforceDiffProgressTable.update(
+                where = {
+                    (SalesforceDiffProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceDiffProgressTable.orgType eq orgType.name) and
+                        (SalesforceDiffProgressTable.phase eq phase.name)
+                },
+            ) {
+                it[SalesforceDiffProgressTable.lastOrgNumber] = lastOrgNumber
+                it[SalesforceDiffProgressTable.newCount] = newCount
+                it[SalesforceDiffProgressTable.updatedCount] = updatedCount
+                it[SalesforceDiffProgressTable.removedCount] = removedCount
+            }
+        }
+    }
+
+    fun markSalesforceDiffDone(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        phase: SalesforceDiffPhase,
+    ) {
+        transaction(database) {
+            SalesforceDiffProgressTable.update(
+                where = {
+                    (SalesforceDiffProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceDiffProgressTable.orgType eq orgType.name) and
+                        (SalesforceDiffProgressTable.phase eq phase.name)
+                },
+            ) {
+                it[status] = SalesforceDiffStatus.DONE.name
+                it[completedAt] = Instant.now()
+            }
+        }
+    }
+
+    fun markSalesforceDiffFailed(
+        snapshotDate: LocalDate,
+        orgType: OrgType,
+        phase: SalesforceDiffPhase,
+    ) {
+        transaction(database) {
+            SalesforceDiffProgressTable.update(
+                where = {
+                    (SalesforceDiffProgressTable.snapshotDate eq snapshotDate) and
+                        (SalesforceDiffProgressTable.orgType eq orgType.name) and
+                        (SalesforceDiffProgressTable.phase eq phase.name)
+                },
+            ) {
+                it[status] = SalesforceDiffStatus.FAILED.name
+                it[completedAt] = Instant.now()
+            }
+        }
+    }
+
+    fun fetchEnhetRows(
+        snapshotDate: LocalDate,
+        orgNumbers: List<String>,
+    ): List<EnhetSnapshot> =
+        if (orgNumbers.isEmpty()) {
+            emptyList()
+        } else {
+            transaction(database) {
+                EnhetSnapshotTable
+                    .selectAll()
+                    .where {
+                        (EnhetSnapshotTable.snapshotDate eq snapshotDate) and
+                            (EnhetSnapshotTable.orgNumber inList orgNumbers)
+                    }.map { it.toEnhetSnapshot() }
+            }
+        }
+
+    fun fetchUnderenhetRows(
+        snapshotDate: LocalDate,
+        orgNumbers: List<String>,
+    ): List<UnderenhetSnapshot> =
+        if (orgNumbers.isEmpty()) {
+            emptyList()
+        } else {
+            transaction(database) {
+                UnderenhetSnapshotTable
+                    .selectAll()
+                    .where {
+                        (UnderenhetSnapshotTable.snapshotDate eq snapshotDate) and
+                            (UnderenhetSnapshotTable.orgNumber inList orgNumbers)
+                    }.map { it.toUnderenhetSnapshot() }
+            }
         }
 }
