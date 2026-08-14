@@ -1383,52 +1383,86 @@ class Application {
     }
 
     private fun diffProgress(date: LocalDate): Map<String, Any?> {
-        val progress =
+        val result =
             OrgType.entries.associate { orgType ->
-                orgType.name.lowercase() to
-                    SalesforceDiffPhase.entries.associate { phase ->
-                        val value =
-                            PostgresDatabase.getSalesforceDiffProgress(
-                                date,
-                                orgType,
-                                phase,
-                            )
+                val today =
+                    PostgresDatabase.getSalesforceDiffProgress(
+                        date,
+                        orgType,
+                        SalesforceDiffPhase.TODAY,
+                    )
 
-                        phase.name.lowercase() to
-                            value?.let {
-                                mapOf(
-                                    "status" to it.status.name,
-                                    "lastOrgNumber" to it.lastOrgNumber,
-                                    "new" to it.newCount,
-                                    "updated" to it.updatedCount,
-                                    "removed" to it.removedCount,
-                                )
-                            }
+                val removed =
+                    PostgresDatabase.getSalesforceDiffProgress(
+                        date,
+                        orgType,
+                        SalesforceDiffPhase.REMOVED,
+                    )
+
+                val status =
+                    when {
+                        today?.status == SalesforceDiffStatus.FAILED ||
+                            removed?.status == SalesforceDiffStatus.FAILED ->
+                            SalesforceDiffStatus.FAILED
+
+                        today?.status == SalesforceDiffStatus.IN_PROGRESS ||
+                            removed?.status == SalesforceDiffStatus.IN_PROGRESS ->
+                            SalesforceDiffStatus.IN_PROGRESS
+
+                        today?.status == SalesforceDiffStatus.DONE &&
+                            removed?.status == SalesforceDiffStatus.DONE ->
+                            SalesforceDiffStatus.DONE
+
+                        else ->
+                            SalesforceDiffStatus.NOT_STARTED
                     }
+
+                val lastOrgNumber =
+                    when {
+                        removed?.status == SalesforceDiffStatus.IN_PROGRESS -> removed.lastOrgNumber
+                        today?.status == SalesforceDiffStatus.IN_PROGRESS -> today.lastOrgNumber
+                        removed?.status == SalesforceDiffStatus.DONE -> removed.lastOrgNumber
+                        else -> today?.lastOrgNumber
+                    }
+
+                orgType.name.lowercase() to
+                    mapOf(
+                        "status" to status.name,
+                        "lastOrgNumber" to lastOrgNumber,
+                        "new" to (today?.newCount ?: 0),
+                        "updated" to (today?.updatedCount ?: 0),
+                        "removed" to (removed?.removedCount ?: 0),
+                    )
             }
-        // Calculate "global" status for diff:
+
         val statuses =
-            OrgType.entries.flatMap { orgType ->
-                SalesforceDiffPhase.entries.mapNotNull { phase ->
-                    PostgresDatabase
-                        .getSalesforceDiffProgress(
-                            date,
-                            orgType,
-                            phase,
-                        )?.status
-                }
+            OrgType.entries.mapNotNull { orgType ->
+                @Suppress("UNCHECKED_CAST")
+                (result[orgType.name.lowercase()] as? Map<String, Any?>)
+                    ?.get("status")
+                    ?.toString()
             }
-        val status =
+
+        val globalStatus =
             when {
-                statuses.any { it == SalesforceDiffStatus.FAILED } -> SalesforceDiffStatus.FAILED
-                statuses.any { it == SalesforceDiffStatus.IN_PROGRESS } -> SalesforceDiffStatus.IN_PROGRESS
-                statuses.size == 4 && statuses.all { it == SalesforceDiffStatus.DONE } -> SalesforceDiffStatus.DONE
-                else -> SalesforceDiffStatus.NOT_STARTED
+                statuses.any { it == SalesforceDiffStatus.FAILED.name } ->
+                    SalesforceDiffStatus.FAILED.name
+
+                statuses.any { it == SalesforceDiffStatus.IN_PROGRESS.name } ->
+                    SalesforceDiffStatus.IN_PROGRESS.name
+
+                statuses.size == OrgType.entries.size &&
+                    statuses.all { it == SalesforceDiffStatus.DONE.name } ->
+                    SalesforceDiffStatus.DONE.name
+
+                else ->
+                    SalesforceDiffStatus.NOT_STARTED.name
             }
 
         return mapOf(
-            "status" to status.name,
-            "phases" to progress,
+            "status" to globalStatus,
+            "enhet" to result["enhet"],
+            "underenhet" to result["underenhet"],
         )
     }
 }
