@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -72,6 +73,7 @@
 
             background: rgba(255, 255, 255, 0.96);
             border-bottom: 1px solid var(--border);
+
             backdrop-filter: blur(8px);
         }
 
@@ -144,6 +146,7 @@
             align-items: baseline;
             justify-content: space-between;
             gap: 16px;
+
             margin-bottom: 12px;
         }
 
@@ -156,6 +159,8 @@
             color: var(--muted);
             font-size: 12px;
         }
+
+        /* STATUS --------------------------------------------------------- */
 
         .status-grid {
             display: grid;
@@ -178,7 +183,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 16px;
         }
 
         .status-card-title {
@@ -190,6 +195,21 @@
             color: var(--muted);
             font-size: 12px;
             margin-top: 3px;
+        }
+
+        .status-summary {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .status-label {
+            color: var(--muted);
+            font-size: 10px;
+            margin-bottom: 4px;
+
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .status-badge {
@@ -277,6 +297,7 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
+
             margin-bottom: 9px;
         }
 
@@ -306,6 +327,7 @@
         .change-item-label {
             font-size: 10px;
             color: var(--muted);
+
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
@@ -319,6 +341,7 @@
         .cursor {
             margin-top: 10px;
             padding: 8px 10px;
+
             border-radius: 6px;
             background: var(--surface-soft);
             border: 1px solid var(--border);
@@ -329,6 +352,7 @@
 
         .cursor span {
             color: var(--text);
+
             font-family:
                     ui-monospace,
                     SFMono-Regular,
@@ -337,6 +361,8 @@
                     Consolas,
                     monospace;
         }
+
+        /* LOOKUP --------------------------------------------------------- */
 
         .lookup-card {
             background: var(--surface);
@@ -360,9 +386,11 @@
 
             border: 1px solid var(--border-strong);
             border-radius: 7px;
+
             padding: 10px 12px;
 
             font: inherit;
+
             font-family:
                     ui-monospace,
                     SFMono-Regular,
@@ -375,6 +403,7 @@
         .org-input:focus {
             outline: none;
             border-color: var(--blue);
+
             box-shadow:
                     0 0 0 3px rgba(37, 99, 235, 0.1);
         }
@@ -413,9 +442,12 @@
 
         .lookup-error {
             padding: 12px 18px;
+
             color: var(--red);
             background: var(--red-soft);
+
             border-bottom: 1px solid #fecaca;
+
             font-size: 13px;
         }
 
@@ -435,6 +467,7 @@
 
         .snapshot-header {
             padding: 14px 18px;
+
             background: var(--surface-soft);
             border-bottom: 1px solid var(--border);
 
@@ -469,19 +502,20 @@
 
         .type-panel-header {
             padding: 10px 18px;
+
             background: #fbfcfd;
+            border-bottom: 1px solid var(--border);
 
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             gap: 10px;
-
-            border-bottom: 1px solid var(--border);
         }
 
         .type-panel-title {
             font-size: 11px;
             font-weight: 700;
+
             letter-spacing: 0.04em;
         }
 
@@ -490,11 +524,89 @@
             font-size: 11px;
         }
 
+        .same-message {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 14px 18px;
+
+            background: var(--green-soft);
+            border-bottom: 1px solid #d1fae5;
+        }
+
+        .same-icon {
+            width: 25px;
+            height: 25px;
+
+            border-radius: 50%;
+
+            background: var(--green);
+            color: white;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-weight: 700;
+        }
+
+        .same-title {
+            color: var(--green);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .same-subtitle {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .same-side-message {
+            padding: 14px 18px;
+
+            color: var(--muted);
+            font-size: 12px;
+
+            background: var(--surface-soft);
+        }
+
+        .change-state {
+            padding: 4px 7px;
+            border-radius: 5px;
+
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .change-new {
+            color: var(--green);
+            background: var(--green-soft);
+        }
+
+        .change-updated {
+            color: var(--blue);
+            background: var(--blue-soft);
+        }
+
+        .change-removed {
+            color: var(--red);
+            background: var(--red-soft);
+        }
+
         .not-found {
             padding: 24px;
+
             text-align: center;
+
             color: var(--muted);
             font-size: 13px;
+        }
+
+        .loading {
+            color: var(--muted);
+            font-size: 12px;
         }
 
         pre {
@@ -519,15 +631,11 @@
             line-height: 1.55;
         }
 
-        .loading {
-            color: var(--muted);
-            font-size: 12px;
-        }
-
         .footer {
             color: var(--muted);
             text-align: center;
             font-size: 11px;
+
             padding: 20px 0 4px;
         }
 
@@ -565,6 +673,16 @@
             .change-grid {
                 grid-template-columns: 1fr;
             }
+
+            .status-card-header {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-summary {
+                width: 100%;
+                justify-content: space-between;
+            }
         }
     </style>
 </head>
@@ -572,51 +690,82 @@
 <body>
 
 <header>
+
     <div class="header-inner">
 
         <div class="brand">
-            <div class="brand-icon">E</div>
+
+            <div class="brand-icon">
+                E
+            </div>
 
             <div>
-                <h1>EREG Operations</h1>
+
+                <h1>
+                    EREG Operations
+                </h1>
+
                 <div class="subtitle">
                     Enhetsregister snapshot &amp; Salesforce monitoring
                 </div>
+
             </div>
+
         </div>
 
+
         <div class="refresh">
-            <span id="last-refresh">Not loaded</span>
-            <button id="refresh-button">Refresh</button>
+
+            <span id="last-refresh">
+                Not loaded
+            </span>
+
+            <button id="refresh-button">
+                Refresh
+            </button>
+
         </div>
 
     </div>
+
 </header>
+
 
 <main>
 
-    <!-- STATUS -->
+    <!-- ============================================================= -->
+    <!-- STATUS                                                        -->
+    <!-- ============================================================= -->
 
     <section>
 
         <div class="section-header">
+
             <div>
-                <h2>Run status</h2>
+
+                <h2>
+                    Run status
+                </h2>
+
                 <div class="section-description">
-                    Current snapshot and Salesforce processing state
+                    Snapshot loading and daily Salesforce operation
                 </div>
+
             </div>
+
         </div>
+
 
         <div class="status-grid">
 
-            <!-- TODAY -->
+            <!-- TODAY ------------------------------------------------ -->
 
             <div class="status-card">
 
                 <div class="status-card-header">
 
                     <div>
+
                         <div class="status-card-title">
                             Today
                         </div>
@@ -627,60 +776,101 @@
                         >
                             —
                         </div>
+
                     </div>
 
-                    <div
-                            id="today-status-badge"
-                            class="status-badge status-not-run"
-                    >
-                        NOT RUN
+
+                    <div class="status-summary">
+
+                        <div>
+
+                            <div class="status-label">
+                                Snapshot
+                            </div>
+
+                            <div
+                                    id="today-status-badge"
+                                    class="status-badge status-not-run"
+                            >
+                                NOT RUN
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="status-label">
+                                Daily operation
+                            </div>
+
+                            <div
+                                    id="today-operation-badge"
+                                    class="status-badge status-not-run"
+                            >
+                                NOT RUN
+                            </div>
+
+                        </div>
+
                     </div>
 
                 </div>
+
 
                 <div class="status-body">
 
                     <div class="stats-grid">
 
                         <div class="stat">
+
                             <div class="stat-label">
                                 ENHET
                             </div>
+
                             <div
                                     class="stat-value"
                                     id="today-enhet-count"
                             >
                                 —
                             </div>
+
                         </div>
 
+
                         <div class="stat">
+
                             <div class="stat-label">
                                 UNDERENHET
                             </div>
+
                             <div
                                     class="stat-value"
                                     id="today-underenhet-count"
                             >
                                 —
                             </div>
+
                         </div>
 
                     </div>
 
+
                     <div id="today-diff"></div>
 
                 </div>
+
             </div>
 
 
-            <!-- YESTERDAY -->
+            <!-- YESTERDAY -------------------------------------------- -->
 
             <div class="status-card">
 
                 <div class="status-card-header">
 
                     <div>
+
                         <div class="status-card-title">
                             Yesterday
                         </div>
@@ -691,50 +881,90 @@
                         >
                             —
                         </div>
+
                     </div>
 
-                    <div
-                            id="yesterday-status-badge"
-                            class="status-badge status-not-run"
-                    >
-                        NOT RUN
+
+                    <div class="status-summary">
+
+                        <div>
+
+                            <div class="status-label">
+                                Snapshot
+                            </div>
+
+                            <div
+                                    id="yesterday-status-badge"
+                                    class="status-badge status-not-run"
+                            >
+                                NOT RUN
+                            </div>
+
+                        </div>
+
+
+                        <div>
+
+                            <div class="status-label">
+                                Daily operation
+                            </div>
+
+                            <div
+                                    id="yesterday-operation-badge"
+                                    class="status-badge status-not-run"
+                            >
+                                NOT RUN
+                            </div>
+
+                        </div>
+
                     </div>
 
                 </div>
+
 
                 <div class="status-body">
 
                     <div class="stats-grid">
 
                         <div class="stat">
+
                             <div class="stat-label">
                                 ENHET
                             </div>
+
                             <div
                                     class="stat-value"
                                     id="yesterday-enhet-count"
                             >
                                 —
                             </div>
+
                         </div>
 
+
                         <div class="stat">
+
                             <div class="stat-label">
                                 UNDERENHET
                             </div>
+
                             <div
                                     class="stat-value"
                                     id="yesterday-underenhet-count"
                             >
                                 —
                             </div>
+
                         </div>
 
                     </div>
 
+
                     <div id="yesterday-diff"></div>
 
                 </div>
+
             </div>
 
         </div>
@@ -742,21 +972,29 @@
     </section>
 
 
-    <!-- ORGANISATION LOOKUP -->
+    <!-- ============================================================= -->
+    <!-- ORGANISATION LOOKUP                                           -->
+    <!-- ============================================================= -->
 
     <section>
 
         <div class="section-header">
 
             <div>
-                <h2>Organisation lookup</h2>
+
+                <h2>
+                    Organisation lookup
+                </h2>
 
                 <div class="section-description">
-                    Compare exact snapshot state in today and yesterday
+                    Compare the exact organisation state in today's
+                    and yesterday's snapshot
                 </div>
+
             </div>
 
         </div>
+
 
         <div class="lookup-card">
 
@@ -768,6 +1006,7 @@
                         type="text"
                         inputmode="numeric"
                         maxlength="20"
+                        autocomplete="off"
                         placeholder="Enter organisasjonsnummer, e.g. 938139024"
                 >
 
@@ -785,7 +1024,8 @@
                     id="lookup-message"
                     class="lookup-message"
             >
-                Enter an organisation number to compare today and yesterday.
+                Enter an organisation number to compare
+                today and yesterday.
             </div>
 
 
@@ -802,13 +1042,14 @@
                     style="display: none;"
             >
 
-                <!-- TODAY -->
+                <!-- TODAY -------------------------------------------- -->
 
                 <div class="snapshot-panel">
 
                     <div class="snapshot-header">
 
                         <div>
+
                             <div class="snapshot-title">
                                 Today
                             </div>
@@ -818,25 +1059,29 @@
                                     id="lookup-today-date"
                             >
                             </div>
+
                         </div>
 
                     </div>
 
+
                     <div
                             id="lookup-today-body"
                             class="snapshot-body"
-                    ></div>
+                    >
+                    </div>
 
                 </div>
 
 
-                <!-- YESTERDAY -->
+                <!-- YESTERDAY --------------------------------------- -->
 
                 <div class="snapshot-panel">
 
                     <div class="snapshot-header">
 
                         <div>
+
                             <div class="snapshot-title">
                                 Yesterday
                             </div>
@@ -846,14 +1091,17 @@
                                     id="lookup-yesterday-date"
                             >
                             </div>
+
                         </div>
 
                     </div>
 
+
                     <div
                             id="lookup-yesterday-body"
                             class="snapshot-body"
-                    ></div>
+                    >
+                    </div>
 
                 </div>
 
@@ -873,12 +1121,20 @@
 
 <script>
 
+    /*
+     * API endpoints
+     */
+
     const STATUS_TODAY_URL =
         "/internal/status";
 
     const STATUS_YESTERDAY_URL =
         "/internal/statusYesterday";
 
+
+    /*
+     * Date helpers
+     */
 
     function todayDate() {
         return new Date()
@@ -888,6 +1144,7 @@
 
 
     function yesterdayDate() {
+
         const date = new Date();
 
         date.setDate(
@@ -899,6 +1156,10 @@
             .slice(0, 10);
     }
 
+
+    /*
+     * General helpers
+     */
 
     function escapeHtml(value) {
 
@@ -932,9 +1193,14 @@
     }
 
 
+    /*
+     * Status rendering
+     */
+
     function statusClass(status) {
 
         switch (status) {
+
             case "DONE":
                 return "status-done";
 
@@ -973,6 +1239,7 @@
 
         return `
             <div class="change-item">
+
                 <div class="change-item-label">
                     ${escapeHtml(label)}
                 </div>
@@ -980,6 +1247,7 @@
                 <div class="change-item-value">
                     ${formatNumber(value)}
                 </div>
+
             </div>
         `;
     }
@@ -995,7 +1263,9 @@
 
             container.innerHTML += `
                 <div class="type-status">
+
                     <div class="type-status-header">
+
                         <div class="type-name">
                             ${escapeHtml(name)}
                         </div>
@@ -1003,7 +1273,9 @@
                         <div class="type-status-label">
                             NOT STARTED
                         </div>
+
                     </div>
+
                 </div>
             `;
 
@@ -1074,6 +1346,10 @@
         data
     ) {
 
+        /*
+         * Snapshot status
+         */
+
         document.getElementById(
             `${prefix}-date`
         ).textContent =
@@ -1104,6 +1380,21 @@
         );
 
 
+        /*
+         * Daily operation status
+         *
+         * This is intentionally separate from snapshot status.
+         */
+
+        renderStatusBadge(
+            document.getElementById(
+                `${prefix}-operation-badge`
+            ),
+            data?.salesforceDiff?.status ||
+            "NOT_STARTED"
+        );
+
+
         const diffContainer =
             document.getElementById(
                 `${prefix}-diff`
@@ -1120,9 +1411,11 @@
 
             diffContainer.innerHTML = `
                 <div class="type-status">
+
                     <div class="type-status-label">
-                        No Salesforce diff run
+                        No Salesforce operation started
                     </div>
+
                 </div>
             `;
 
@@ -1136,12 +1429,13 @@
                 <div class="type-status-header">
 
                     <div class="type-name">
-                        Salesforce diff
+                        Salesforce changes
                     </div>
 
                     <div class="type-status-label">
                         ${escapeHtml(
-            diff.status || "NOT_STARTED"
+            diff.status ||
+            "NOT_STARTED"
         )}
                     </div>
 
@@ -1166,6 +1460,10 @@
     }
 
 
+    /*
+     * Status API
+     */
+
     async function loadStatus() {
 
         try {
@@ -1174,12 +1472,26 @@
                 todayResponse,
                 yesterdayResponse
             ] = await Promise.all([
-                fetch(STATUS_TODAY_URL),
-                fetch(STATUS_YESTERDAY_URL)
+
+                fetch(
+                    STATUS_TODAY_URL,
+                    {
+                        cache: "no-store"
+                    }
+                ),
+
+                fetch(
+                    STATUS_YESTERDAY_URL,
+                    {
+                        cache: "no-store"
+                    }
+                )
+
             ]);
 
 
             if (!todayResponse.ok) {
+
                 throw new Error(
                     `Today status: HTTP ${todayResponse.status}`
                 );
@@ -1187,6 +1499,7 @@
 
 
             if (!yesterdayResponse.ok) {
+
                 throw new Error(
                     `Yesterday status: HTTP ${yesterdayResponse.status}`
                 );
@@ -1197,8 +1510,11 @@
                 today,
                 yesterday
             ] = await Promise.all([
+
                 todayResponse.json(),
+
                 yesterdayResponse.json()
+
             ]);
 
 
@@ -1228,6 +1544,7 @@
                 error
             );
 
+
             document.getElementById(
                 "last-refresh"
             ).textContent =
@@ -1236,12 +1553,17 @@
     }
 
 
+    /*
+     * Organisation lookup
+     */
+
     async function loadOrganisation() {
 
         const input =
             document.getElementById(
                 "org-number"
             );
+
 
         const orgNumber =
             input.value.trim();
@@ -1265,6 +1587,7 @@
                 "comparison"
             );
 
+
         const message =
             document.getElementById(
                 "lookup-message"
@@ -1273,11 +1596,15 @@
 
         message.innerHTML =
             `<span class="loading">
-                Loading ${escapeHtml(orgNumber)}...
+                Loading ${escapeHtml(
+                orgNumber
+            )}...
              </span>`;
+
 
         message.style.display =
             "block";
+
 
         comparison.style.display =
             "none";
@@ -1286,17 +1613,21 @@
         const today =
             todayDate();
 
+
         const yesterday =
             yesterdayDate();
 
 
         document.getElementById(
             "lookup-today-date"
-        ).textContent = today;
+        ).textContent =
+            today;
+
 
         document.getElementById(
             "lookup-yesterday-date"
-        ).textContent = yesterday;
+        ).textContent =
+            yesterday;
 
 
         try {
@@ -1305,17 +1636,29 @@
                 todayResponse,
                 yesterdayResponse
             ] = await Promise.all([
+
                 fetch(
                     `/internal/gui/api/org/` +
-                    `${encodeURIComponent(orgNumber)}` +
-                    `?date=${today}`
+                    `${encodeURIComponent(
+                        orgNumber
+                    )}` +
+                    `?date=${today}`,
+                    {
+                        cache: "no-store"
+                    }
                 ),
 
                 fetch(
                     `/internal/gui/api/org/` +
-                    `${encodeURIComponent(orgNumber)}` +
-                    `?date=${yesterday}`
+                    `${encodeURIComponent(
+                        orgNumber
+                    )}` +
+                    `?date=${yesterday}`,
+                    {
+                        cache: "no-store"
+                    }
                 )
+
             ]);
 
 
@@ -1323,29 +1666,27 @@
                 todayData,
                 yesterdayData
             ] = await Promise.all([
+
                 readOrganisationResponse(
                     todayResponse
                 ),
+
                 readOrganisationResponse(
                     yesterdayResponse
                 )
+
             ]);
 
 
-            renderOrganisation(
-                "lookup-today-body",
-                todayData
-            );
-
-
-            renderOrganisation(
-                "lookup-yesterday-body",
+            renderOrganisationComparison(
+                todayData,
                 yesterdayData
             );
 
 
             comparison.style.display =
                 "grid";
+
 
             message.style.display =
                 "none";
@@ -1357,11 +1698,14 @@
                 error
             );
 
+
             comparison.style.display =
                 "none";
 
+
             message.style.display =
                 "block";
+
 
             showLookupError(
                 error.message
@@ -1391,122 +1735,446 @@
     }
 
 
-    function renderOrganisation(
-        elementId,
-        data
-    ) {
+    /*
+     * Organisation comparison
+     */
 
-        const element =
-            document.getElementById(
-                elementId
+    function parsePayload(payload) {
+
+        if (
+            payload === null ||
+            payload === undefined
+        ) {
+            return null;
+        }
+
+
+        if (
+            typeof payload !== "string"
+        ) {
+            return payload;
+        }
+
+
+        try {
+
+            return JSON.parse(
+                payload
             );
 
+        } catch (_) {
 
-        if (!data || !data.snapshots) {
+            return payload;
+        }
+    }
 
-            element.innerHTML = `
-                <div class="not-found">
-                    Organisation does not exist
-                    in this snapshot.
-                </div>
-            `;
 
-            return;
+    function normalizedPayload(
+        payload
+    ) {
+
+        const parsed =
+            parsePayload(payload);
+
+
+        if (
+            typeof parsed === "string"
+        ) {
+            return parsed;
         }
 
 
-        if (data.snapshots.length === 0) {
-
-            element.innerHTML = `
-                <div class="not-found">
-                    Organisation does not exist
-                    in this snapshot.
-                </div>
-            `;
-
-            return;
-        }
-
-
-        element.innerHTML = "";
-
-
-        data.snapshots.forEach(
-            snapshot => {
-
-                let parsed =
-                    snapshot.payload;
-
-
-                if (
-                    typeof snapshot.payload === "string"
-                ) {
-
-                    try {
-                        parsed =
-                            JSON.parse(
-                                snapshot.payload
-                            );
-                    } catch (_) {
-                        parsed =
-                            snapshot.payload;
-                    }
-                }
-
-
-                const pretty =
-                    typeof parsed === "string"
-                        ? parsed
-                        : JSON.stringify(
-                            parsed,
-                            null,
-                            2
-                        );
-
-
-                const panel =
-                    document.createElement(
-                        "div"
-                    );
-
-                panel.className =
-                    "type-panel";
-
-
-                panel.innerHTML = `
-                    <div class="type-panel-header">
-
-                        <div class="type-panel-title">
-                            ${escapeHtml(
-                    snapshot.orgType
-                )}
-                        </div>
-
-                        <div class="type-panel-meta">
-                            ${
-                    snapshot.registrationDate
-                        ? escapeHtml(
-                            snapshot.registrationDate
-                        )
-                        : ""
-                }
-                        </div>
-
-                    </div>
-
-                    <pre>${escapeHtml(
-                    pretty
-                )}</pre>
-                `;
-
-
-                element.appendChild(
-                    panel
-                );
-            }
+        return JSON.stringify(
+            parsed
         );
     }
 
+
+    function prettyPayload(
+        payload
+    ) {
+
+        const parsed =
+            parsePayload(payload);
+
+
+        if (
+            typeof parsed === "string"
+        ) {
+            return parsed;
+        }
+
+
+        return JSON.stringify(
+            parsed,
+            null,
+            2
+        );
+    }
+
+
+    function renderOrganisationComparison(
+        todayData,
+        yesterdayData
+    ) {
+
+        const todayBody =
+            document.getElementById(
+                "lookup-today-body"
+            );
+
+
+        const yesterdayBody =
+            document.getElementById(
+                "lookup-yesterday-body"
+            );
+
+
+        todayBody.innerHTML = "";
+        yesterdayBody.innerHTML = "";
+
+
+        const todaySnapshots =
+            todayData?.snapshots || [];
+
+
+        const yesterdaySnapshots =
+            yesterdayData?.snapshots || [];
+
+
+        const types = [
+            "ENHET",
+            "UNDERENHET"
+        ];
+
+
+        /*
+         * If neither snapshot contains anything,
+         * show the empty state in both columns.
+         */
+
+        if (
+            todaySnapshots.length === 0 &&
+            yesterdaySnapshots.length === 0
+        ) {
+
+            todayBody.innerHTML = `
+                <div class="not-found">
+                    Organisation not found
+                    in this snapshot.
+                </div>
+            `;
+
+
+            yesterdayBody.innerHTML = `
+                <div class="not-found">
+                    Organisation not found
+                    in this snapshot.
+                </div>
+            `;
+
+
+            return;
+        }
+
+
+        types.forEach(type => {
+
+            const today =
+                todaySnapshots.find(
+                    snapshot =>
+                        snapshot.orgType === type
+                );
+
+
+            const yesterday =
+                yesterdaySnapshots.find(
+                    snapshot =>
+                        snapshot.orgType === type
+                );
+
+
+            /*
+             * Neither day has this type.
+             */
+
+            if (
+                !today &&
+                !yesterday
+            ) {
+                return;
+            }
+
+
+            /*
+             * Exists on both days and has exactly
+             * the same JSON state.
+             */
+
+            if (
+                today &&
+                yesterday &&
+                normalizedPayload(
+                    today.payload
+                ) ===
+                normalizedPayload(
+                    yesterday.payload
+                )
+            ) {
+
+                renderSameOrganisation(
+                    todayBody,
+                    yesterdayBody,
+                    type,
+                    today
+                );
+
+                return;
+            }
+
+
+            /*
+             * Exists today only.
+             */
+
+            if (
+                today &&
+                !yesterday
+            ) {
+
+                renderOrganisationPanel(
+                    todayBody,
+                    type,
+                    today,
+                    "NEW"
+                );
+
+
+                renderNotFoundPanel(
+                    yesterdayBody,
+                    type,
+                    "Not present yesterday"
+                );
+
+
+                return;
+            }
+
+
+            /*
+             * Exists yesterday only.
+             */
+
+            if (
+                !today &&
+                yesterday
+            ) {
+
+                renderNotFoundPanel(
+                    todayBody,
+                    type,
+                    "Not present today"
+                );
+
+
+                renderOrganisationPanel(
+                    yesterdayBody,
+                    type,
+                    yesterday,
+                    "REMOVED"
+                );
+
+
+                return;
+            }
+
+
+            /*
+             * Exists on both days but changed.
+             */
+
+            renderOrganisationPanel(
+                todayBody,
+                type,
+                today,
+                "UPDATED"
+            );
+
+
+            renderOrganisationPanel(
+                yesterdayBody,
+                type,
+                yesterday,
+                "PREVIOUS"
+            );
+
+        });
+    }
+
+
+    function renderSameOrganisation(
+        todayBody,
+        yesterdayBody,
+        type,
+        snapshot
+    ) {
+
+        const pretty =
+            prettyPayload(
+                snapshot.payload
+            );
+
+
+        todayBody.innerHTML += `
+            <div class="same-message">
+
+                <div class="same-icon">
+                    ✓
+                </div>
+
+                <div>
+
+                    <div class="same-title">
+                        Same as yesterday
+                    </div>
+
+                    <div class="same-subtitle">
+                        ${escapeHtml(type)}
+                    </div>
+
+                </div>
+
+            </div>
+
+            <pre>${escapeHtml(
+            pretty
+        )}</pre>
+        `;
+
+
+        yesterdayBody.innerHTML += `
+            <div class="same-side-message">
+                Same data as today
+            </div>
+        `;
+    }
+
+
+    function renderOrganisationPanel(
+        element,
+        type,
+        snapshot,
+        state
+    ) {
+
+        const pretty =
+            prettyPayload(
+                snapshot.payload
+            );
+
+
+        const stateClass =
+            state === "UPDATED"
+                ? "change-updated"
+                : state === "NEW"
+                    ? "change-new"
+                    : state === "REMOVED"
+                        ? "change-removed"
+                        : "";
+
+
+        const panel =
+            document.createElement(
+                "div"
+            );
+
+
+        panel.className =
+            "type-panel";
+
+
+        panel.innerHTML = `
+            <div class="type-panel-header">
+
+                <div>
+
+                    <div class="type-panel-title">
+                        ${escapeHtml(type)}
+                    </div>
+
+                    <div class="type-panel-meta">
+                        ${
+            snapshot.registrationDate
+                ? escapeHtml(
+                    snapshot.registrationDate
+                )
+                : ""
+        }
+                    </div>
+
+                </div>
+
+
+                <div class="change-state ${stateClass}">
+                    ${escapeHtml(state)}
+                </div>
+
+            </div>
+
+
+            <pre>${escapeHtml(
+            pretty
+        )}</pre>
+        `;
+
+
+        element.appendChild(
+            panel
+        );
+    }
+
+
+    function renderNotFoundPanel(
+        element,
+        type,
+        message
+    ) {
+
+        const panel =
+            document.createElement(
+                "div"
+            );
+
+
+        panel.className =
+            "type-panel";
+
+
+        panel.innerHTML = `
+            <div class="type-panel-header">
+
+                <div class="type-panel-title">
+                    ${escapeHtml(type)}
+                </div>
+
+            </div>
+
+
+            <div class="not-found">
+                ${escapeHtml(message)}
+            </div>
+        `;
+
+
+        element.appendChild(
+            panel
+        );
+    }
+
+
+    /*
+     * Lookup errors
+     */
 
     function showLookupError(
         message
@@ -1517,8 +2185,10 @@
                 "lookup-error"
             );
 
+
         element.textContent =
             message;
+
 
         element.style.display =
             "block";
@@ -1532,13 +2202,20 @@
                 "lookup-error"
             );
 
+
         element.style.display =
             "none";
     }
 
 
+    /*
+     * Events
+     */
+
     document
-        .getElementById("refresh-button")
+        .getElementById(
+            "refresh-button"
+        )
         .addEventListener(
             "click",
             loadStatus
@@ -1546,7 +2223,9 @@
 
 
     document
-        .getElementById("lookup-button")
+        .getElementById(
+            "lookup-button"
+        )
         .addEventListener(
             "click",
             loadOrganisation
@@ -1554,12 +2233,16 @@
 
 
     document
-        .getElementById("org-number")
+        .getElementById(
+            "org-number"
+        )
         .addEventListener(
             "keydown",
             event => {
 
-                if (event.key === "Enter") {
+                if (
+                    event.key === "Enter"
+                ) {
                     loadOrganisation();
                 }
 
@@ -1567,9 +2250,14 @@
         );
 
 
+    /*
+     * Initial load
+     */
+
     loadStatus();
 
 </script>
 
 </body>
+
 </html>
