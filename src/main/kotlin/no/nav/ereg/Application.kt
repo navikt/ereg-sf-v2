@@ -118,7 +118,7 @@ class Application {
             "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
             "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
             "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
-            "/internal/testDiff" bind Method.GET to testDiffHandler,
+            "/internal/sendTodayChanges" bind Method.GET to sendTodayChangesHandler,
         )
     // )
 
@@ -134,47 +134,67 @@ class Application {
         apiServer(8080).start()
     }
 
-    private val testDiffHandler: HttpHandler = {
-        val today = LocalDate.now()
+    private fun sendTodayChanges(today: LocalDate) {
         val yesterday = today.minusDays(1)
 
         val todayRun = fetchRun(today)
         val yesterdayRun = fetchRun(yesterday)
 
-        when {
-            todayRun.status != TodayRunStatus.DONE ->
-                Response(Status.CONFLICT)
-                    .body("Today's snapshot is not DONE")
+        require(todayRun.status == TodayRunStatus.DONE) {
+            "Today's snapshot is not DONE"
+        }
 
-            yesterdayRun.status != TodayRunStatus.DONE ->
-                Response(Status.CONFLICT)
-                    .body("Yesterday's snapshot is not DONE")
+        require(yesterdayRun.status == TodayRunStatus.DONE) {
+            "Yesterday's snapshot is not DONE"
+        }
 
-            diffRunning.get() ->
-                Response(Status.CONFLICT)
-                    .body("Diff is already running")
+        PostgresDatabase.resetSalesforceDiff(
+            snapshotDate = today,
+        )
 
-            else -> {
-                diffRunning.set(true)
+        val result =
+            runSalesforceDiff(
+                today = today,
+                yesterday = yesterday,
+            )
 
-                runExecutor.submit {
-                    try {
-                        runSalesforceDiff(
-                            today = today,
-                            yesterday = yesterday,
-                        )
-                    } catch (e: Exception) {
-                        log.error(e) {
-                            "Salesforce diff failed"
-                        }
-                    } finally {
-                        diffRunning.set(false)
+        log.info {
+            "Manual Salesforce send: " +
+                "total=${result.total}, " +
+                "ENHET new=${result.enhet.new}, " +
+                "updated=${result.enhet.updated}, " +
+                "removed=${result.enhet.removed}, " +
+                "UNDERENHET new=${result.underenhet.new}, " +
+                "updated=${result.underenhet.updated}, " +
+                "removed=${result.underenhet.removed}"
+        }
+
+        if (result.changes.isNotEmpty()) {
+            salesforceClient.postChanges(result.changes)
+        }
+    }
+
+    private val sendTodayChangesHandler: HttpHandler = {
+        val today = LocalDate.now()
+
+        if (!diffRunning.compareAndSet(false, true)) {
+            Response(Status.CONFLICT)
+                .body("Diff/send is already running")
+        } else {
+            runExecutor.submit {
+                try {
+                    sendTodayChanges(today)
+                } catch (e: Exception) {
+                    log.error(e) {
+                        "Sending today's changes to Salesforce failed"
                     }
+                } finally {
+                    diffRunning.set(false)
                 }
-
-                Response(Status.ACCEPTED)
-                    .body("Diff started")
             }
+
+            Response(Status.ACCEPTED)
+                .body("Today's changes are being sent to Salesforce")
         }
     }
 
@@ -556,32 +576,33 @@ class Application {
         val today = LocalDate.now()
 
         synchronized(runLock) {
-
             val existing =
                 PostgresDatabase.getEnhetsregisterSnapshot(today)
 
             when (existing?.status) {
-
                 EnhetsregisterSnapshotStatus.LOADING -> {
                     Response(Status.CONFLICT)
-                        .body(
-                            "Today's run is already in progress",
-                        )
+                        .body("Today's snapshot is already loading")
                 }
 
                 EnhetsregisterSnapshotStatus.READY -> {
-                    Response(Status.OK)
-                        .body(
-                            "Today's run has already completed successfully",
-                        )
+                    if (isTodayRunComplete(today)) {
+                        Response(Status.OK)
+                            .body(
+                                "Today's run has already completed successfully",
+                            )
+                    } else {
+                        startTodayRun(today)
+
+                        Response(Status.ACCEPTED)
+                            .body(
+                                "Today's run started from existing snapshot",
+                            )
+                    }
                 }
 
                 EnhetsregisterSnapshotStatus.FAILED -> {
-
                     PostgresDatabase.deleteEnhetsregisterSnapshot(today)
-
-                    PostgresDatabase.createEnhetsregisterSnapshot(today)
-
                     startTodayRun(today)
 
                     Response(Status.ACCEPTED)
@@ -589,9 +610,6 @@ class Application {
                 }
 
                 null -> {
-
-                    PostgresDatabase.createEnhetsregisterSnapshot(today)
-
                     startTodayRun(today)
 
                     Response(Status.ACCEPTED)
@@ -601,6 +619,176 @@ class Application {
         }
     }
 
+    private fun startTodayRun(snapshotDate: LocalDate) {
+        Metrics.publishedOrgs.clear()
+
+        runExecutor.submit {
+            try {
+                runToday(snapshotDate)
+            } catch (e: Exception) {
+                log.error(e) {
+                    "Daily run failed for $snapshotDate"
+                }
+            }
+        }
+    }
+
+    private fun runToday(today: LocalDate) {
+        val yesterday = today.minusDays(1)
+
+        ensureTodaySnapshot(today)
+
+        val todayRun = fetchRun(today)
+        val yesterdayRun = fetchRun(yesterday)
+
+        if (todayRun.status != TodayRunStatus.DONE) {
+            log.error {
+                "Today's snapshot is not DONE after snapshot phase: " +
+                    todayRun.status
+            }
+            return
+        }
+
+        if (yesterdayRun.status != TodayRunStatus.DONE) {
+            log.warn {
+                "Yesterday's snapshot is not DONE. " +
+                    "Skipping diff. status=${yesterdayRun.status}"
+            }
+            return
+        }
+
+        log.info {
+            "Starting Salesforce diff $yesterday -> $today"
+        }
+
+        val result =
+            runSalesforceDiff(
+                today = today,
+                yesterday = yesterday,
+            )
+
+        log.info {
+            "Salesforce diff completed: " +
+                "ENHET new=${result.enhet.new}, " +
+                "updated=${result.enhet.updated}, " +
+                "removed=${result.enhet.removed}; " +
+                "UNDERENHET new=${result.underenhet.new}, " +
+                "updated=${result.underenhet.updated}, " +
+                "removed=${result.underenhet.removed}; " +
+                "total=${result.total}"
+        }
+
+        if (result.changes.isNotEmpty()) {
+            salesforceClient.postChanges(result.changes)
+        }
+
+        log.info {
+            "Salesforce posting completed successfully"
+        }
+
+        PostgresDatabase.cleanupOldData(
+            keepSnapshotDates = setOf(today, yesterday),
+            keepStatusSince = today.minusDays(30),
+        )
+
+        log.info {
+            "Daily run completed successfully for $today"
+        }
+    }
+
+    private fun ensureTodaySnapshot(snapshotDate: LocalDate) {
+        val existing =
+            fetchRun(snapshotDate)
+
+        when (existing.status) {
+            TodayRunStatus.DONE -> {
+                log.info {
+                    "Snapshot $snapshotDate already READY"
+                }
+                return
+            }
+
+            TodayRunStatus.IN_PROGRESS ->
+                error(
+                    "Snapshot $snapshotDate is already in progress",
+                )
+
+            TodayRunStatus.FAILED -> {
+                log.info {
+                    "Removing failed snapshot $snapshotDate"
+                }
+
+                PostgresDatabase.deleteEnhetsregisterSnapshot(
+                    snapshotDate,
+                )
+
+                PostgresDatabase.createEnhetsregisterSnapshot(
+                    snapshotDate,
+                )
+            }
+
+            TodayRunStatus.NOT_RUN -> {
+                PostgresDatabase.createEnhetsregisterSnapshot(
+                    snapshotDate,
+                )
+            }
+        }
+
+        try {
+            log.info {
+                "Starting Enhetsregister snapshot for $snapshotDate"
+            }
+
+            downloadAndImportEnheter(snapshotDate)
+
+            downloadAndImportUnderenheter(snapshotDate)
+
+            val snapshot =
+                PostgresDatabase.getEnhetsregisterSnapshot(
+                    snapshotDate,
+                )
+                    ?: error(
+                        "Snapshot disappeared during run",
+                    )
+
+            PostgresDatabase.markSnapshotReady(
+                snapshotDate = snapshotDate,
+                enhetCount = snapshot.enhetCount ?: 0,
+                underenhetCount = snapshot.underenhetCount ?: 0,
+                sourceChecksum = null,
+            )
+
+            log.info {
+                "Enhetsregister snapshot completed for $snapshotDate: " +
+                    "ENHET=${snapshot.enhetCount ?: 0}, " +
+                    "UNDERENHET=${snapshot.underenhetCount ?: 0}"
+            }
+        } catch (e: Exception) {
+            log.error(e) {
+                "Enhetsregister snapshot failed for $snapshotDate"
+            }
+
+            PostgresDatabase.markSnapshotFailed(
+                snapshotDate,
+            )
+
+            throw e
+        }
+    }
+
+    private fun isTodayRunComplete(today: LocalDate): Boolean =
+        OrgType.entries.all { orgType ->
+            SalesforceDiffPhase.entries.all { phase ->
+                PostgresDatabase
+                    .getSalesforceDiffProgress(
+                        today,
+                        orgType,
+                        phase,
+                    )?.status == SalesforceDiffStatus.DONE
+            }
+        }
+
+    /*
     private fun startTodayRun(snapshotDate: LocalDate) {
         Metrics.publishedOrgs.clear()
         runExecutor.submit {
@@ -646,6 +834,8 @@ class Application {
             }
         }
     }
+
+     */
 
     private fun runSalesforceFullLoad(snapshotDate: LocalDate) {
         log.info {

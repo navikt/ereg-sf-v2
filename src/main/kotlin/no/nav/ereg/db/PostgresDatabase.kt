@@ -25,6 +25,8 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.deleteWhere
@@ -605,4 +607,41 @@ object PostgresDatabase {
                     }.map { it.toUnderenhetSnapshot() }
             }
         }
+
+    fun resetSalesforceDiff(snapshotDate: LocalDate) {
+        transaction(database) {
+            SalesforceDiffProgressTable.deleteWhere {
+                SalesforceDiffProgressTable.snapshotDate eq snapshotDate
+            }
+        }
+    }
+
+    fun cleanupOldData(
+        keepSnapshotDates: Set<LocalDate>,
+        keepStatusSince: LocalDate,
+    ) {
+        transaction(database) {
+            // Large tables: only keep today + yesterday
+            EnhetSnapshotTable.deleteWhere {
+                EnhetSnapshotTable.snapshotDate notInList keepSnapshotDates
+            }
+
+            UnderenhetSnapshotTable.deleteWhere {
+                UnderenhetSnapshotTable.snapshotDate notInList keepSnapshotDates
+            }
+
+            // Small metadata/history tables: retain recent history
+            EnhetsregisterSnapshotTable.deleteWhere {
+                EnhetsregisterSnapshotTable.snapshotDate less keepStatusSince
+            }
+
+            SalesforceInitialLoadProgressTable.deleteWhere {
+                SalesforceInitialLoadProgressTable.snapshotDate less keepStatusSince
+            }
+
+            SalesforceDiffProgressTable.deleteWhere {
+                SalesforceDiffProgressTable.snapshotDate less keepStatusSince
+            }
+        }
+    }
 }
