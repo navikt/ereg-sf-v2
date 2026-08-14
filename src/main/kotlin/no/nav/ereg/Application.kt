@@ -116,6 +116,103 @@ class Application {
             "/internal/statusYesterday" bind Method.GET to { runResponse(LocalDate.now().minusDays(1)) },
             "/internal/salesforce/fullLoad" bind Method.GET to triggerSalesforceFullLoadHandler,
             "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
+            "/internal/testSalesforceDiff" bind Method.GET to {
+                val today = LocalDate.now()
+                val yesterday = today.minusDays(1)
+
+                val todayRun = fetchRun(today)
+                val yesterdayRun = fetchRun(yesterday)
+
+                when {
+                    todayRun.status != TodayRunStatus.DONE ->
+                        Response(Status.CONFLICT)
+                            .body(
+                                "Today's snapshot is not DONE: " +
+                                    todayRun.status,
+                            )
+
+                    yesterdayRun.status != TodayRunStatus.DONE ->
+                        Response(Status.CONFLICT)
+                            .body(
+                                "Yesterday's snapshot is not DONE: " +
+                                    yesterdayRun.status,
+                            )
+
+                    else -> {
+                        val changes =
+                            PostgresDatabase.fetchOrganisationChanges(
+                                today = today,
+                                yesterday = yesterday,
+                            )
+
+                        val enhet =
+                            changes.filter {
+                                it.orgType == OrgType.ENHET
+                            }
+
+                        val underenhet =
+                            changes.filter {
+                                it.orgType == OrgType.UNDERENHET
+                            }
+
+                        val response =
+                            SalesforceDiffPreview(
+                                date = today,
+                                yesterday = yesterday,
+                                totalChanges = changes.size,
+                                enhet =
+                                    ChangeStats(
+                                        new =
+                                            enhet.count {
+                                                it.changeType == ChangeType.NEW
+                                            },
+                                        updated =
+                                            enhet.count {
+                                                it.changeType == ChangeType.UPDATED
+                                            },
+                                        removed =
+                                            enhet.count {
+                                                it.changeType == ChangeType.REMOVED
+                                            },
+                                    ),
+                                underenhet =
+                                    ChangeStats(
+                                        new =
+                                            underenhet.count {
+                                                it.changeType == ChangeType.NEW
+                                            },
+                                        updated =
+                                            underenhet.count {
+                                                it.changeType == ChangeType.UPDATED
+                                            },
+                                        removed =
+                                            underenhet.count {
+                                                it.changeType == ChangeType.REMOVED
+                                            },
+                                    ),
+                                sample =
+                                    changes
+                                        .take(20)
+                                        .map {
+                                            OrganisationChangePreview(
+                                                orgNumber = it.orgNumber,
+                                                orgType = it.orgType.name,
+                                                changeType = it.changeType.name,
+                                                name =
+                                                    it.payload
+                                                        ?.let(::extractName),
+                                            )
+                                        },
+                            )
+
+                        Response(OK)
+                            .header("Content-Type", "application/json")
+                            .body(
+                                gson.toJson(response),
+                            )
+                    }
+                }
+            },
         )
     // )
 
@@ -146,6 +243,16 @@ class Application {
         PostgresDatabase.createSalesforceInitialLoadProgressTable(false)
         Response(OK).body("Tables created")
     }
+
+    private fun extractName(json: String): String? =
+        runCatching {
+            JsonParser
+                .parseString(json)
+                .asJsonObject
+                .get("navn")
+                ?.takeIf { !it.isJsonNull }
+                ?.asString
+        }.getOrNull()
 
     private fun importEnheter(
         input: InputStream,
@@ -542,6 +649,7 @@ class Application {
     }
 
     private fun startTodayRun(snapshotDate: LocalDate) {
+        Metrics.publishedOrgs.clear()
         runExecutor.submit {
             try {
                 log.info {
@@ -877,3 +985,25 @@ fun UnderenhetSnapshot.toNewChange() =
         payloadHash = payloadHash,
         payload = payload,
     )
+
+data class SalesforceDiffPreview(
+    val date: LocalDate,
+    val yesterday: LocalDate,
+    val totalChanges: Int,
+    val enhet: ChangeStats,
+    val underenhet: ChangeStats,
+    val sample: List<OrganisationChangePreview>,
+)
+
+data class ChangeStats(
+    val new: Int,
+    val updated: Int,
+    val removed: Int,
+)
+
+data class OrganisationChangePreview(
+    val orgNumber: String,
+    val orgType: String,
+    val changeType: String,
+    val name: String?,
+)

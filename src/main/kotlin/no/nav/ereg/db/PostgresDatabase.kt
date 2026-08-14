@@ -15,7 +15,9 @@ import UnderenhetSnapshotTable
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
+import no.nav.ereg.ChangeType
 import no.nav.ereg.OrgType
+import no.nav.ereg.OrganisationChange
 import no.nav.ereg.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -425,5 +427,113 @@ object PostgresDatabase {
                     UnderenhetSnapshotTable.orgNumber to SortOrder.ASC,
                 ).limit(limit)
                 .map { it.toUnderenhetSnapshot() }
+        }
+
+    fun fetchOrganisationChanges(
+        today: LocalDate,
+        yesterday: LocalDate,
+    ): List<OrganisationChange> =
+        transaction(database) {
+            val sql =
+                """
+                SELECT
+                    t.org_number,
+                    'ENHET' AS org_type,
+                    CASE
+                        WHEN y.org_number IS NULL THEN 'NEW'
+                        ELSE 'UPDATED'
+                    END AS change_type,
+                    t.payload_hash,
+                    t.payload
+                FROM enhet_snapshot t
+                LEFT JOIN enhet_snapshot y
+                    ON y.snapshot_date = '$yesterday'
+                   AND y.org_number = t.org_number
+                WHERE t.snapshot_date = '$today'
+                  AND (
+                        y.org_number IS NULL
+                        OR t.payload_hash <> y.payload_hash
+                  )
+
+                UNION ALL
+
+                SELECT
+                    y.org_number,
+                    'ENHET' AS org_type,
+                    'REMOVED' AS change_type,
+                    NULL AS payload_hash,
+                    NULL AS payload
+                FROM enhet_snapshot y
+                LEFT JOIN enhet_snapshot t
+                    ON t.snapshot_date = '$today'
+                   AND t.org_number = y.org_number
+                WHERE y.snapshot_date = '$yesterday'
+                  AND t.org_number IS NULL
+
+                UNION ALL
+
+                SELECT
+                    t.org_number,
+                    'UNDERENHET' AS org_type,
+                    CASE
+                        WHEN y.org_number IS NULL THEN 'NEW'
+                        ELSE 'UPDATED'
+                    END AS change_type,
+                    t.payload_hash,
+                    t.payload
+                FROM underenhet_snapshot t
+                LEFT JOIN underenhet_snapshot y
+                    ON y.snapshot_date = '$yesterday'
+                   AND y.org_number = t.org_number
+                WHERE t.snapshot_date = '$today'
+                  AND (
+                        y.org_number IS NULL
+                        OR t.payload_hash <> y.payload_hash
+                  )
+
+                UNION ALL
+
+                SELECT
+                    y.org_number,
+                    'UNDERENHET' AS org_type,
+                    'REMOVED' AS change_type,
+                    NULL AS payload_hash,
+                    NULL AS payload
+                FROM underenhet_snapshot y
+                LEFT JOIN underenhet_snapshot t
+                    ON t.snapshot_date = '$today'
+                   AND t.org_number = y.org_number
+                WHERE y.snapshot_date = '$yesterday'
+                  AND t.org_number IS NULL
+
+                ORDER BY org_type, org_number
+                """.trimIndent()
+
+            val changes = mutableListOf<OrganisationChange>()
+
+            exec(sql) { resultSet ->
+                while (resultSet.next()) {
+                    changes +=
+                        OrganisationChange(
+                            orgNumber = resultSet.getString("org_number"),
+                            orgType =
+                                OrgType.valueOf(
+                                    resultSet.getString("org_type"),
+                                ),
+                            changeType =
+                                ChangeType.valueOf(
+                                    resultSet.getString("change_type"),
+                                ),
+                            payloadHash =
+                                resultSet.getString("payload_hash"),
+                            payload =
+                                resultSet.getString("payload"),
+                        )
+                }
+
+                Unit
+            }
+
+            changes
         }
 }
