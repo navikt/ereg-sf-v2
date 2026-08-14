@@ -93,17 +93,6 @@ class Application {
 
     fun apiServer(port: Int): Http4kServer = api().asServer(Netty(port))
 
-    private val accessLog =
-        Filter { next ->
-            { request ->
-                log.info {
-                    "HTTP ${request.method} ${request.uri}"
-                }
-
-                next(request)
-            }
-        }
-
     fun api(): HttpHandler =
         // accessLog(
         routes(
@@ -870,55 +859,6 @@ class Application {
             }
         }
 
-    /*
-    private fun startTodayRun(snapshotDate: LocalDate) {
-        Metrics.publishedOrgs.clear()
-        runExecutor.submit {
-            try {
-                log.info {
-                    "Starting Enhetsregister ENHET snapshot " +
-                        "for $snapshotDate"
-                }
-
-                downloadAndImportEnheter(snapshotDate)
-
-                downloadAndImportUnderenheter(snapshotDate)
-
-                val snapshot =
-                    PostgresDatabase.getEnhetsregisterSnapshot(
-                        snapshotDate,
-                    )
-                        ?: error(
-                            "Snapshot disappeared during run",
-                        )
-
-                PostgresDatabase.markSnapshotReady(
-                    snapshotDate = snapshotDate,
-                    enhetCount = snapshot.enhetCount ?: 0,
-                    underenhetCount = snapshot.underenhetCount ?: 0,
-                    sourceChecksum = null,
-                )
-
-                log.info {
-                    "Enhetsregister ENHET snapshot completed " +
-                        "for $snapshotDate: " +
-                        "${snapshot.enhetCount ?: 0} events"
-                }
-            } catch (e: Exception) {
-                log.error(e) {
-                    "Enhetsregister snapshot failed " +
-                        "for $snapshotDate"
-                }
-
-                PostgresDatabase.markSnapshotFailed(
-                    snapshotDate,
-                )
-            }
-        }
-    }
-
-     */
-
     private fun runSalesforceFullLoad(snapshotDate: LocalDate) {
         log.info {
             "Starting Salesforce full load for $snapshotDate"
@@ -979,11 +919,6 @@ class Application {
                     orgType = OrgType.ENHET,
                     lastOrgNumber = lastOrgNumber,
                 )
-
-                log.info {
-                    "Salesforce initial ENHET load progressed to " +
-                        lastOrgNumber
-                }
             }
         } catch (e: Exception) {
             PostgresDatabase.markSalesforceInitialLoadFailed(
@@ -1041,11 +976,6 @@ class Application {
                     orgType = OrgType.UNDERENHET,
                     lastOrgNumber = lastOrgNumber,
                 )
-
-                log.info {
-                    "Salesforce initial UNDERENHET load progressed to " +
-                        lastOrgNumber
-                }
             }
         } catch (e: Exception) {
             PostgresDatabase.markSalesforceInitialLoadFailed(
@@ -1237,14 +1167,6 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
-
-                    log.info {
-                        "ENHET diff progress " +
-                            "org=${todayRows.last().orgNumber}, " +
-                            "batchChanges=${batchChanges.size}, " +
-                            "new=${stats.new}, " +
-                            "updated=${stats.updated}"
-                    }
                 }
 
                 lastOrgNumber =
@@ -1366,14 +1288,6 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
-
-                    log.info {
-                        "UNDERENHET diff progress " +
-                            "org=${todayRows.last().orgNumber}, " +
-                            "batchChanges=${batchChanges.size}, " +
-                            "new=${stats.new}, " +
-                            "updated=${stats.updated}"
-                    }
                 }
 
                 lastOrgNumber =
@@ -1478,13 +1392,6 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
-
-                    log.info {
-                        "ENHET removed diff progress " +
-                            "org=${yesterdayRows.last().orgNumber}, " +
-                            "batchChanges=${batchChanges.size}, " +
-                            "removed=${stats.removed}"
-                    }
                 }
 
                 lastOrgNumber =
@@ -1589,13 +1496,6 @@ class Application {
 
                 if (batchChanges.isNotEmpty()) {
                     changes += batchChanges
-
-                    log.info {
-                        "UNDERENHET removed diff progress " +
-                            "org=${yesterdayRows.last().orgNumber}, " +
-                            "batchChanges=${batchChanges.size}, " +
-                            "removed=${stats.removed}"
-                    }
                 }
 
                 lastOrgNumber =
