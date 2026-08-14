@@ -27,8 +27,11 @@ import org.http4k.core.Response
 import org.http4k.core.Status
 import org.http4k.core.Status.Companion.OK
 import org.http4k.filter.gunzippedStream
+import org.http4k.routing.ResourceLoader
 import org.http4k.routing.bind
+import org.http4k.routing.path
 import org.http4k.routing.routes
+import org.http4k.routing.static
 import org.http4k.server.Http4kServer
 import org.http4k.server.Netty
 import org.http4k.server.asServer
@@ -107,6 +110,8 @@ class Application {
             "/internal/isAlive" bind Method.GET to { Response(OK) },
             "/internal/isReady" bind Method.GET to { Response(OK) },
             "/internal/metrics" bind Method.GET to Metrics.metricsHttpHandler,
+            "/internal/gui" bind Method.GET to static(ResourceLoader.Classpath("gui")),
+            "/internal/gui/api/org/{orgNumber}" bind Method.GET to organisationLookupHandler,
             "/internal/hello" bind Method.GET to { Response(OK).body("Hello") },
             "/internal/secrethello" authbind Method.GET to { Response(OK).body("Secret Hello") },
             "/internal/files" bind Method.GET to filesHandler(File("/tmp/files")),
@@ -132,6 +137,83 @@ class Application {
         val dir = File("/tmp/files")
         dir.mkdirs() // ensures /tmp/files exists
         apiServer(8080).start()
+    }
+
+    private val organisationLookupHandler: HttpHandler = { request ->
+        val orgNumber =
+            request.path("orgNumber")
+
+        val date =
+            request
+                .query("date")
+                ?.let {
+                    runCatching { LocalDate.parse(it) }.getOrNull()
+                }
+
+        when {
+            orgNumber.isNullOrBlank() ->
+                Response(Status.BAD_REQUEST)
+                    .body("Missing orgNumber")
+
+            date == null ->
+                Response(Status.BAD_REQUEST)
+                    .body("Missing or invalid date. Expected yyyy-MM-dd")
+
+            else -> {
+                val enhet =
+                    PostgresDatabase.getEnhetSnapshot(
+                        snapshotDate = date,
+                        orgNumber = orgNumber,
+                    )
+
+                val underenhet =
+                    PostgresDatabase.getUnderenhetSnapshot(
+                        snapshotDate = date,
+                        orgNumber = orgNumber,
+                    )
+
+                if (enhet == null && underenhet == null) {
+                    Response(Status.NOT_FOUND)
+                        .body(
+                            "Organisation $orgNumber not found in snapshot $date",
+                        )
+                } else {
+                    val response =
+                        OrganisationSnapshotResponse(
+                            orgNumber = orgNumber,
+                            snapshots =
+                                listOfNotNull(
+                                    enhet?.let {
+                                        OrganisationSnapshot(
+                                            orgType = OrgType.ENHET.name,
+                                            name = it.name,
+                                            registrationDate =
+                                                it.registrationDate?.toString(),
+                                            payload = it.payload,
+                                        )
+                                    },
+                                    underenhet?.let {
+                                        OrganisationSnapshot(
+                                            orgType = OrgType.UNDERENHET.name,
+                                            name = it.name,
+                                            registrationDate =
+                                                it.registrationDate?.toString(),
+                                            payload = it.payload,
+                                        )
+                                    },
+                                ),
+                        )
+
+                    Response(Status.OK)
+                        .header(
+                            "Content-Type",
+                            "application/json",
+                        ).body(
+                            gson.toJson(response),
+                        )
+                }
+            }
+        }
     }
 
     private fun sendTodayChanges(today: LocalDate) {
@@ -1759,3 +1841,15 @@ data class DiffResult(
     val total: Int
         get() = changes.size
 }
+
+data class OrganisationSnapshotResponse(
+    val orgNumber: String,
+    val snapshots: List<OrganisationSnapshot>,
+)
+
+data class OrganisationSnapshot(
+    val orgType: String,
+    val name: String?,
+    val registrationDate: String?,
+    val payload: String,
+)

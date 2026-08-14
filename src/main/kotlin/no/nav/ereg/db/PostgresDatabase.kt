@@ -644,4 +644,32 @@ object PostgresDatabase {
             }
         }
     }
+
+    fun getEnhetSnapshot(
+        snapshotDate: LocalDate,
+        orgNumber: String,
+    ): EnhetSnapshot? =
+        transaction(database) {
+            EnhetSnapshotTable
+                .selectAll()
+                .where {
+                    (EnhetSnapshotTable.snapshotDate eq snapshotDate) and
+                        (EnhetSnapshotTable.orgNumber eq orgNumber)
+                }.singleOrNull()
+                ?.toEnhetSnapshot()
+        }
+
+    fun getUnderenhetSnapshot(
+        snapshotDate: LocalDate,
+        orgNumber: String,
+    ): UnderenhetSnapshot? =
+        transaction(database) {
+            UnderenhetSnapshotTable
+                .selectAll()
+                .where {
+                    (UnderenhetSnapshotTable.snapshotDate eq snapshotDate) and
+                        (UnderenhetSnapshotTable.orgNumber eq orgNumber)
+                }.singleOrNull()
+                ?.toUnderenhetSnapshot()
+        }
 }
