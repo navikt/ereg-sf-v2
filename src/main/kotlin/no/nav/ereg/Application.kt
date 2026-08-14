@@ -183,6 +183,7 @@ class Application {
         PostgresDatabase.createEnhetSnapshotTable(true)
         PostgresDatabase.createUnderenhetSnapshotTable(true)
         PostgresDatabase.createSalesforceInitialLoadProgressTable(true)
+        PostgresDatabase.createSalesforceDiffProgressTable(true)
         Response(OK).body("Tables recreated")
     }
 
@@ -190,8 +191,9 @@ class Application {
 //        PostgresDatabase.createEnhetsregisterSnapshotTable(false)
 //        PostgresDatabase.createEnhetSnapshotTable(false)
 //        PostgresDatabase.createUnderenhetSnapshotTable(false)
-        PostgresDatabase.createSalesforceInitialLoadProgressTable(false)
-        Response(OK).body("Tables created")
+//        PostgresDatabase.createSalesforceInitialLoadProgressTable(false)
+        PostgresDatabase.createSalesforceDiffProgressTable(false)
+        Response(OK).body("Table created")
     }
 
     private fun extractName(json: String): String? =

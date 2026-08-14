@@ -6,9 +6,11 @@ import EnhetSnapshot
 import EnhetSnapshotTable
 import EnhetsregisterSnapshot
 import EnhetsregisterSnapshotTable
+import SALESFORCE_DIFF_PROGRESS
 import SALESFORCE_INITIAL_LOAD_PROGRESS
 import SalesforceDiffPhase
 import SalesforceDiffProgress
+import SalesforceDiffProgressTable
 import SalesforceInitialLoadProgress
 import SalesforceInitialLoadProgressTable
 import UNDERENHET_SNAPSHOT
@@ -122,6 +124,21 @@ object PostgresDatabase {
 
             log.info { "Creating table $SALESFORCE_INITIAL_LOAD_PROGRESS" }
             SchemaUtils.create(SalesforceInitialLoadProgressTable)
+        }
+    }
+
+    fun createSalesforceDiffProgressTable(dropFirst: Boolean = false) {
+        transaction {
+            if (dropFirst) {
+                log.info { "Dropping table $SALESFORCE_DIFF_PROGRESS" }
+                val dropStatement =
+                    TransactionManager.current().connection.prepareStatement("DROP TABLE $SALESFORCE_DIFF_PROGRESS", false)
+                dropStatement.executeUpdate()
+                log.info { "Drop performed" }
+            }
+
+            log.info { "Creating table $SALESFORCE_DIFF_PROGRESS" }
+            SchemaUtils.create(SalesforceDiffProgressTable)
         }
     }
 
