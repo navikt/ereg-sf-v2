@@ -744,4 +744,36 @@ object PostgresDatabase {
                     )
                 }
         }
+
+    fun resetInterruptedSnapshot(snapshotDate: LocalDate) {
+        transaction(database) {
+            // Large snapshot data
+            EnhetSnapshotTable.deleteWhere {
+                EnhetSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            UnderenhetSnapshotTable.deleteWhere {
+                UnderenhetSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            // Snapshot metadata
+            EnhetsregisterSnapshotTable.deleteWhere {
+                EnhetsregisterSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            // Diff state belongs to this particular snapshot
+            SalesforceDiffProgressTable.deleteWhere {
+                SalesforceDiffProgressTable.snapshotDate eq snapshotDate
+            }
+
+            SalesforceDiffOrganisationTable.deleteWhere {
+                SalesforceDiffOrganisationTable.snapshotDate eq snapshotDate
+            }
+
+            // Initial-load progress also belongs to this snapshot
+            SalesforceInitialLoadProgressTable.deleteWhere {
+                SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate
+            }
+        }
+    }
 }

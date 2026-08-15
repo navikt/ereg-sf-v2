@@ -344,18 +344,35 @@
             background: var(--blue-soft);
         }
 
+        .change-item-value {
+            margin-top: 3px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .change-item.in-progress .change-item-value {
+            color: var(--yellow);
+        }
+
+        .change-item.failed .change-item-value {
+            color: var(--red);
+        }
+
+        .change-item.not-started .change-item-value {
+            color: var(--muted);
+        }
+
+        .change-item.done .change-item-value {
+            color: var(--text);
+        }
+
         .change-item-label {
             font-size: 10px;
             color: var(--muted);
 
             text-transform: uppercase;
             letter-spacing: 0.04em;
-        }
-
-        .change-item-value {
-            margin-top: 3px;
-            font-size: 16px;
-            font-weight: 700;
         }
 
         .cursor {
@@ -838,7 +855,9 @@
 
 <main>
 
-    <!-- STATUS -->
+    <!-- ============================================================= -->
+    <!-- STATUS                                                        -->
+    <!-- ============================================================= -->
 
     <section>
 
@@ -1075,7 +1094,9 @@
     </section>
 
 
-    <!-- ORGANISATION LOOKUP -->
+    <!-- ============================================================= -->
+    <!-- ORGANISATION LOOKUP                                           -->
+    <!-- ============================================================= -->
 
     <section>
 
@@ -1229,12 +1250,12 @@
         "/internal/statusYesterday";
 
 
-    function todayDate() {
+    /* DATE HELPERS */
 
+    function todayDate() {
         return new Date()
             .toISOString()
             .slice(0, 10);
-
     }
 
 
@@ -1249,9 +1270,10 @@
         return date
             .toISOString()
             .slice(0, 10);
-
     }
 
+
+    /* GENERAL HELPERS */
 
     function escapeHtml(value) {
 
@@ -1268,7 +1290,6 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
-
     }
 
 
@@ -1283,11 +1304,10 @@
 
         return Number(value)
             .toLocaleString("en-US");
-
     }
 
 
-    /* STATUS ---------------------------------------------------------- */
+    /* STATUS */
 
     function statusClass(status) {
 
@@ -1304,9 +1324,26 @@
 
             default:
                 return "status-not-run";
-
         }
+    }
 
+
+    function statusClassForChange(status) {
+
+        switch (status) {
+
+            case "IN_PROGRESS":
+                return "in-progress";
+
+            case "FAILED":
+                return "failed";
+
+            case "DONE":
+                return "done";
+
+            default:
+                return "not-started";
+        }
     }
 
 
@@ -1323,28 +1360,26 @@
             status
                 ? status.replaceAll("_", " ")
                 : "NOT RUN";
-
     }
 
 
-    /*
-     * The counters in the dashboard are clickable.
-     */
+    /* CHANGE COUNTERS */
 
     function renderChangeItem(
         label,
         value,
+        status,
         snapshotDate,
         orgType,
-        changeType,
-        parentContainer
+        changeType
     ) {
 
         const item =
             document.createElement("div");
 
         item.className =
-            "change-item";
+            "change-item " +
+            statusClassForChange(status);
 
         item.innerHTML = `
             <div class="change-item-label">
@@ -1361,7 +1396,10 @@
             "click",
             () => {
 
-                if (!value || Number(value) === 0) {
+                if (
+                    !value ||
+                    Number(value) === 0
+                ) {
                     return;
                 }
 
@@ -1369,7 +1407,6 @@
                     snapshotDate,
                     orgType,
                     changeType,
-                    parentContainer,
                     item
                 );
 
@@ -1377,10 +1414,7 @@
         );
 
 
-        parentContainer.appendChild(item);
-
         return item;
-
     }
 
 
@@ -1450,7 +1484,8 @@
             "type-status-label";
 
         status.textContent =
-            data.status || "NOT_STARTED";
+            data.status ||
+            "NOT_STARTED";
 
 
         header.appendChild(title);
@@ -1466,31 +1501,39 @@
             "change-grid";
 
 
-        renderChangeItem(
-            "New",
-            data.new,
-            snapshotDate,
-            name,
-            "NEW",
-            changeGrid
+        changeGrid.appendChild(
+            renderChangeItem(
+                "New",
+                data.new,
+                data.status,
+                snapshotDate,
+                name,
+                "NEW"
+            )
         );
 
-        renderChangeItem(
-            "Updated",
-            data.updated,
-            snapshotDate,
-            name,
-            "UPDATED",
-            changeGrid
+
+        changeGrid.appendChild(
+            renderChangeItem(
+                "Updated",
+                data.updated,
+                data.status,
+                snapshotDate,
+                name,
+                "UPDATED"
+            )
         );
 
-        renderChangeItem(
-            "Removed",
-            data.removed,
-            snapshotDate,
-            name,
-            "REMOVED",
-            changeGrid
+
+        changeGrid.appendChild(
+            renderChangeItem(
+                "Removed",
+                data.removed,
+                data.status,
+                snapshotDate,
+                name,
+                "REMOVED"
+            )
         );
 
 
@@ -1517,7 +1560,6 @@
             `;
 
             section.appendChild(cursor);
-
         }
 
 
@@ -1536,7 +1578,6 @@
         container.appendChild(
             section
         );
-
     }
 
 
@@ -1567,9 +1608,7 @@
             );
 
 
-        /*
-         * Snapshot status
-         */
+        /* Snapshot status */
 
         renderStatusBadge(
             document.getElementById(
@@ -1579,9 +1618,7 @@
         );
 
 
-        /*
-         * Overall daily operation status.
-         */
+        /* Daily operation status */
 
         renderStatusBadge(
             document.getElementById(
@@ -1617,7 +1654,6 @@
             `;
 
             return;
-
         }
 
 
@@ -1665,29 +1701,23 @@
             diff.underenhet,
             data.date
         );
-
     }
 
 
-    /* CHANGE ORGANISATION LIST --------------------------------------- */
+    /* CHANGE ORGANISATION LIST */
 
     async function loadChangeOrganisations(
         snapshotDate,
         orgType,
         changeType,
-        sectionContainer,
         clickedItem
     ) {
-
-        /*
-         * The clicked item is inside the section's change-grid.
-         * Find the list container associated with this type.
-         */
 
         const section =
             clickedItem.closest(
                 ".type-status"
             );
+
 
         const listContainer =
             section.querySelector(
@@ -1695,9 +1725,7 @@
             );
 
 
-        /*
-         * Clicking the same square collapses it.
-         */
+        /* Same square = collapse */
 
         if (
             listContainer.classList.contains(
@@ -1717,9 +1745,7 @@
         }
 
 
-        /*
-         * Close another list in the same type.
-         */
+        /* Close other selections */
 
         section
             .querySelectorAll(
@@ -1762,9 +1788,11 @@
             </div>
 
             <div class="change-list">
+
                 <div class="change-list-status">
                     Loading organisations...
                 </div>
+
             </div>
         `;
 
@@ -1798,7 +1826,6 @@
                 throw new Error(
                     `HTTP ${response.status}`
                 );
-
             }
 
 
@@ -1808,10 +1835,7 @@
 
             renderChangeOrganisationList(
                 listContainer,
-                rows,
-                snapshotDate,
-                orgType,
-                changeType
+                rows
             );
 
         } catch (error) {
@@ -1846,18 +1870,13 @@
 
                 </div>
             `;
-
         }
-
     }
 
 
     function renderChangeOrganisationList(
         container,
-        rows,
-        snapshotDate,
-        orgType,
-        changeType
+        rows
     ) {
 
         const totalReturned =
@@ -1867,30 +1886,24 @@
 
 
         const header =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         header.className =
             "change-list-header";
 
 
         const title =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         title.className =
             "change-list-title";
 
         title.textContent =
-            `${orgType} · ${changeType}`;
+            "Organisation numbers";
 
 
         const meta =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         meta.className =
             "change-list-meta";
@@ -1906,9 +1919,7 @@
 
 
         const list =
-            document.createElement(
-                "div"
-            );
+            document.createElement("div");
 
         list.className =
             "change-list";
@@ -1920,9 +1931,7 @@
         ) {
 
             const empty =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             empty.className =
                 "change-list-status";
@@ -1930,26 +1939,23 @@
             empty.textContent =
                 "No organisations found.";
 
-            list.appendChild(
-                empty
-            );
+            list.appendChild(empty);
 
         } else {
 
             rows.forEach(row => {
 
                 const button =
-                    document.createElement(
-                        "button"
-                    );
+                    document.createElement("button");
+
+                button.type =
+                    "button";
 
                 button.className =
                     "change-org";
 
-
                 button.textContent =
                     row.orgNumber;
-
 
                 button.title =
                     `Inspect ${row.orgNumber}`;
@@ -1963,6 +1969,7 @@
                             document.getElementById(
                                 "org-number"
                             );
+
 
                         input.value =
                             row.orgNumber;
@@ -1980,12 +1987,8 @@
                 );
 
 
-                list.appendChild(
-                    button
-                );
-
+                list.appendChild(button);
             });
-
         }
 
 
@@ -1993,11 +1996,10 @@
 
         container.appendChild(header);
         container.appendChild(list);
-
     }
 
 
-    /* STATUS API ----------------------------------------------------- */
+    /* STATUS API */
 
     async function loadStatus() {
 
@@ -2030,7 +2032,6 @@
                 throw new Error(
                     `Today status: HTTP ${todayResponse.status}`
                 );
-
             }
 
 
@@ -2039,7 +2040,6 @@
                 throw new Error(
                     `Yesterday status: HTTP ${yesterdayResponse.status}`
                 );
-
             }
 
 
@@ -2086,13 +2086,11 @@
                 "last-refresh"
             ).textContent =
                 "Status unavailable";
-
         }
-
     }
 
 
-    /* ORGANISATION LOOKUP -------------------------------------------- */
+    /* ORGANISATION LOOKUP */
 
     async function loadOrganisation() {
 
@@ -2113,7 +2111,6 @@
             );
 
             return;
-
         }
 
 
@@ -2248,9 +2245,7 @@
             showLookupError(
                 error.message
             );
-
         }
-
     }
 
 
@@ -2258,7 +2253,9 @@
         response
     ) {
 
-        if (response.status === 404) {
+        if (
+            response.status === 404
+        ) {
             return null;
         }
 
@@ -2268,18 +2265,18 @@
             throw new Error(
                 `Organisation lookup failed: HTTP ${response.status}`
             );
-
         }
 
 
         return response.json();
-
     }
 
 
-    /* ORGANISATION COMPARISON --------------------------------------- */
+    /* ORGANISATION COMPARISON */
 
-    function parsePayload(payload) {
+    function parsePayload(
+        payload
+    ) {
 
         if (
             payload === null ||
@@ -2305,9 +2302,7 @@
         } catch (_) {
 
             return payload;
-
         }
-
     }
 
 
@@ -2316,9 +2311,7 @@
     ) {
 
         const parsed =
-            parsePayload(
-                payload
-            );
+            parsePayload(payload);
 
 
         if (
@@ -2331,7 +2324,6 @@
         return JSON.stringify(
             parsed
         );
-
     }
 
 
@@ -2340,9 +2332,7 @@
     ) {
 
         const parsed =
-            parsePayload(
-                payload
-            );
+            parsePayload(payload);
 
 
         if (
@@ -2357,7 +2347,6 @@
             null,
             2
         );
-
     }
 
 
@@ -2418,7 +2407,6 @@
 
 
             return;
-
         }
 
 
@@ -2438,9 +2426,7 @@
                 );
 
 
-            /*
-             * Neither snapshot has this type.
-             */
+            /* Neither snapshot has this type */
 
             if (
                 !today &&
@@ -2450,9 +2436,7 @@
             }
 
 
-            /*
-             * SAME
-             */
+            /* SAME */
 
             if (
                 today &&
@@ -2473,13 +2457,10 @@
                 );
 
                 return;
-
             }
 
 
-            /*
-             * NEW
-             */
+            /* NEW */
 
             if (
                 today &&
@@ -2502,13 +2483,10 @@
 
 
                 return;
-
             }
 
 
-            /*
-             * REMOVED
-             */
+            /* REMOVED */
 
             if (
                 !today &&
@@ -2531,13 +2509,10 @@
 
 
                 return;
-
             }
 
 
-            /*
-             * UPDATED
-             */
+            /* UPDATED */
 
             renderOrganisationPanel(
                 todayBody,
@@ -2555,7 +2530,6 @@
             );
 
         });
-
     }
 
 
@@ -2604,7 +2578,6 @@
                 Same data as today
             </div>
         `;
-
     }
 
 
@@ -2679,7 +2652,6 @@
         element.appendChild(
             panel
         );
-
     }
 
 
@@ -2718,11 +2690,10 @@
         element.appendChild(
             panel
         );
-
     }
 
 
-    /* LOOKUP ERRORS -------------------------------------------------- */
+    /* LOOKUP ERRORS */
 
     function showLookupError(
         message
@@ -2740,7 +2711,6 @@
 
         element.style.display =
             "block";
-
     }
 
 
@@ -2754,11 +2724,10 @@
 
         element.style.display =
             "none";
-
     }
 
 
-    /* EVENTS --------------------------------------------------------- */
+    /* EVENTS */
 
     document
         .getElementById(
@@ -2791,9 +2760,7 @@
                 if (
                     event.key === "Enter"
                 ) {
-
                     loadOrganisation();
-
                 }
 
             }

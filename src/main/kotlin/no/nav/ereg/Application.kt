@@ -16,6 +16,7 @@ import no.nav.ereg.token.AuthRouteBuilder
 import no.nav.ereg.token.DefaultTokenValidator
 import no.nav.ereg.token.MockTokenValidator
 import no.nav.sf.keytool.db.PostgresDatabase
+import no.nav.sf.keytool.db.PostgresDatabase.startSalesforceInitialLoad
 import okhttp3.OkHttpClient
 import org.http4k.client.OkHttp
 import org.http4k.core.BodyMode
@@ -127,6 +128,7 @@ class Application {
         val dir = File("/tmp/files")
         dir.mkdirs() // ensures /tmp/files exists
         apiServer(8080).start()
+        recoverAfterStartup() // Check on status of today if there is one in progress and resume in that case
     }
 
     private val diffOrganisationsHandler: HttpHandler = { request ->
@@ -1720,6 +1722,124 @@ class Application {
             "enhet" to result["enhet"],
             "underenhet" to result["underenhet"],
         )
+    }
+
+    private fun hasSalesforceDiffInProgress(date: LocalDate): Boolean =
+        OrgType.entries.any { orgType ->
+            SalesforceDiffPhase.entries.any { phase ->
+                PostgresDatabase
+                    .getSalesforceDiffProgress(
+                        date,
+                        orgType,
+                        phase,
+                    )?.status == SalesforceDiffStatus.IN_PROGRESS
+            }
+        }
+
+    private fun hasSalesforceInitialLoadInProgress(date: LocalDate): Boolean =
+        OrgType.entries.any { orgType ->
+            PostgresDatabase
+                .getSalesforceInitialLoadProgress(
+                    date,
+                    orgType,
+                )?.status == SalesforceInitialLoadStatus.IN_PROGRESS
+        }
+
+    private fun recoverAfterStartup() {
+        runExecutor.submit {
+            try {
+                // Give Hikari/DB and the rest of the application a moment to settle.
+                Thread.sleep(2_000)
+
+                val today = LocalDate.now()
+
+                synchronized(runLock) {
+                    val snapshot =
+                        PostgresDatabase.getEnhetsregisterSnapshot(today)
+
+                    when (snapshot?.status) {
+                        EnhetsregisterSnapshotStatus.LOADING -> {
+                            log.warn {
+                                "Found interrupted Enhetsregister snapshot for $today. " +
+                                    "Removing partial snapshot and restarting."
+                            }
+
+                            PostgresDatabase.resetInterruptedSnapshot(today)
+
+                            startTodayRun(today)
+                        }
+
+                        EnhetsregisterSnapshotStatus.READY -> {
+                            when {
+                                hasSalesforceDiffInProgress(today) -> {
+                                    log.info {
+                                        "Found interrupted Salesforce diff for $today. " +
+                                            "Resuming."
+                                    }
+
+                                    startTodayRun(today)
+                                }
+
+                                hasSalesforceInitialLoadInProgress(today) -> {
+                                    log.info {
+                                        "Found interrupted Salesforce initial load for $today."
+                                    }
+
+                                    OrgType.entries.forEach { orgType ->
+                                        val progress =
+                                            PostgresDatabase
+                                                .getSalesforceInitialLoadProgress(
+                                                    snapshotDate = today,
+                                                    orgType = orgType,
+                                                )
+
+                                        if (
+                                            progress?.status ==
+                                            SalesforceInitialLoadStatus.IN_PROGRESS
+                                        ) {
+                                            log.info {
+                                                "Resuming Salesforce initial load " +
+                                                    "for $orgType from " +
+                                                    "${progress.lastOrgNumber}"
+                                            }
+
+                                            startSalesforceInitialLoad(
+                                                snapshotDate = today,
+                                                orgType = orgType,
+                                                lastOrgNumber = progress.lastOrgNumber,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                else -> {
+                                    log.info {
+                                        "No interrupted operation found for $today"
+                                    }
+                                }
+                            }
+                        }
+
+                        EnhetsregisterSnapshotStatus.FAILED -> {
+                            log.info {
+                                "Today's snapshot is FAILED. " +
+                                    "Waiting for normal triggerRun handling."
+                            }
+                        }
+
+                        null -> {
+                            log.info {
+                                "No snapshot found for $today. Nothing to recover."
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                log.error(e) {
+                    "Startup recovery failed"
+                }
+            }
+        }
     }
 }
 
