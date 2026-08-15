@@ -129,6 +129,8 @@
 
             color: var(--muted);
             font-size: 12px;
+
+            flex-wrap: wrap;
         }
 
         main {
@@ -158,6 +160,53 @@
         .section-description {
             color: var(--muted);
             font-size: 12px;
+        }
+
+        /* BUTTONS */
+
+        button {
+            border: 1px solid var(--border-strong);
+            background: var(--surface);
+            color: var(--text);
+
+            border-radius: 7px;
+            padding: 10px 15px;
+
+            font: inherit;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: var(--surface-soft);
+        }
+
+        button.primary {
+            background: var(--blue);
+            border-color: var(--blue);
+            color: white;
+        }
+
+        button.primary:hover {
+            filter: brightness(0.96);
+        }
+
+        button.danger {
+            background: var(--red);
+            border-color: var(--red);
+            color: white;
+        }
+
+        button.danger:hover {
+            filter: brightness(0.94);
+        }
+
+        button.danger:disabled {
+            background: #d1d5db;
+            border-color: #d1d5db;
+            color: #6b7280;
+
+            cursor: not-allowed;
+            filter: none;
         }
 
         /* STATUS */
@@ -324,6 +373,7 @@
             background: var(--surface);
 
             cursor: pointer;
+
             transition:
                     border-color 0.15s ease,
                     background 0.15s ease,
@@ -346,8 +396,10 @@
 
         .change-item-value {
             margin-top: 3px;
+
             font-size: 16px;
             font-weight: 700;
+
             color: var(--text);
         }
 
@@ -446,7 +498,9 @@
         .change-list-status {
             padding: 18px;
             color: var(--muted);
+
             text-align: center;
+
             font-size: 12px;
         }
 
@@ -528,32 +582,6 @@
 
             box-shadow:
                     0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        button {
-            border: 1px solid var(--border-strong);
-            background: var(--surface);
-            color: var(--text);
-
-            border-radius: 7px;
-            padding: 10px 15px;
-
-            font: inherit;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: var(--surface-soft);
-        }
-
-        button.primary {
-            background: var(--blue);
-            border-color: var(--blue);
-            color: white;
-        }
-
-        button.primary:hover {
-            filter: brightness(0.96);
         }
 
         .lookup-message {
@@ -753,6 +781,25 @@
             line-height: 1.55;
         }
 
+        /* FULL LOAD */
+
+        .danger-zone {
+            margin-top: 36px;
+            padding: 16px 18px;
+
+            background: var(--red-soft);
+            border: 1px solid #fecaca;
+            border-radius: var(--radius);
+        }
+
+        .danger-zone .section-header {
+            margin-bottom: 12px;
+        }
+
+        .danger-zone h2 {
+            color: var(--red);
+        }
+
         .footer {
             color: var(--muted);
             text-align: center;
@@ -841,6 +888,13 @@
             <span id="last-refresh">
                 Not loaded
             </span>
+
+            <button
+                    id="trigger-run-button"
+                    class="danger"
+            >
+                Trigger run
+            </button>
 
             <button id="refresh-button">
                 Refresh
@@ -1234,6 +1288,40 @@
     </section>
 
 
+    <!-- ============================================================= -->
+    <!-- FULL LOAD                                                     -->
+    <!-- ============================================================= -->
+
+    <section class="danger-zone">
+
+        <div class="section-header">
+
+            <div>
+
+                <h2>
+                    Salesforce initial load
+                </h2>
+
+                <div class="section-description">
+                    Post the complete current snapshot to Salesforce
+                    as NEW organisations.
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <button
+                id="full-load-button"
+                class="danger"
+        >
+            Full load today's snapshot
+        </button>
+
+    </section>
+
+
     <div class="footer">
         EREG internal operations
     </div>
@@ -1243,25 +1331,40 @@
 
 <script>
 
+    /*
+     * API endpoints
+     */
+
     const STATUS_TODAY_URL =
         "/internal/status";
 
     const STATUS_YESTERDAY_URL =
         "/internal/statusYesterday";
 
+    const TRIGGER_RUN_URL =
+        "/internal/triggerRun";
 
-    /* DATE HELPERS */
+    const FULL_LOAD_URL =
+        "/internal/salesforce/fullLoad";
+
+
+    /*
+     * Date helpers
+     */
 
     function todayDate() {
+
         return new Date()
             .toISOString()
             .slice(0, 10);
+
     }
 
 
     function yesterdayDate() {
 
-        const date = new Date();
+        const date =
+            new Date();
 
         date.setDate(
             date.getDate() - 1
@@ -1270,10 +1373,13 @@
         return date
             .toISOString()
             .slice(0, 10);
+
     }
 
 
-    /* GENERAL HELPERS */
+    /*
+     * General helpers
+     */
 
     function escapeHtml(value) {
 
@@ -1290,6 +1396,7 @@
             .replaceAll(">", "&gt;")
             .replaceAll('"', "&quot;")
             .replaceAll("'", "&#039;");
+
     }
 
 
@@ -1304,10 +1411,13 @@
 
         return Number(value)
             .toLocaleString("en-US");
+
     }
 
 
-    /* STATUS */
+    /*
+     * Status
+     */
 
     function statusClass(status) {
 
@@ -1324,7 +1434,9 @@
 
             default:
                 return "status-not-run";
+
         }
+
     }
 
 
@@ -1343,7 +1455,9 @@
 
             default:
                 return "not-started";
+
         }
+
     }
 
 
@@ -1360,10 +1474,49 @@
             status
                 ? status.replaceAll("_", " ")
                 : "NOT RUN";
+
     }
 
 
-    /* CHANGE COUNTERS */
+    function todayRunIsFullyDone(data) {
+
+        return (
+            data?.status === "DONE" &&
+            data?.salesforceDiff?.status === "DONE"
+        );
+
+    }
+
+
+    function updateTriggerButton(data) {
+
+        const button =
+            document.getElementById(
+                "trigger-run-button"
+            );
+
+
+        const done =
+            todayRunIsFullyDone(
+                data
+            );
+
+
+        button.disabled =
+            done;
+
+
+        button.textContent =
+            done
+                ? "Today's run complete"
+                : "Trigger run";
+
+    }
+
+
+    /*
+     * Change counters
+     */
 
     function renderChangeItem(
         label,
@@ -1375,11 +1528,15 @@
     ) {
 
         const item =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         item.className =
             "change-item " +
             statusClassForChange(status);
+
 
         item.innerHTML = `
             <div class="change-item-label">
@@ -1403,6 +1560,7 @@
                     return;
                 }
 
+
                 loadChangeOrganisations(
                     snapshotDate,
                     orgType,
@@ -1415,6 +1573,7 @@
 
 
         return item;
+
     }
 
 
@@ -1428,10 +1587,13 @@
         if (!data) {
 
             const section =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
 
             section.className =
                 "type-status";
+
 
             section.innerHTML = `
                 <div class="type-status-header">
@@ -1447,41 +1609,59 @@
                 </div>
             `;
 
-            container.appendChild(section);
+
+            container.appendChild(
+                section
+            );
+
 
             return;
         }
 
 
         const section =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         section.className =
             "type-status";
 
 
         const header =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         header.className =
             "type-status-header";
 
 
         const title =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         title.className =
             "type-name";
+
 
         title.textContent =
             name;
 
 
         const status =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         status.className =
             "type-status-label";
+
 
         status.textContent =
             data.status ||
@@ -1491,11 +1671,17 @@
         header.appendChild(title);
         header.appendChild(status);
 
-        section.appendChild(header);
+
+        section.appendChild(
+            header
+        );
 
 
         const changeGrid =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         changeGrid.className =
             "change-grid";
@@ -1542,13 +1728,19 @@
         );
 
 
-        if (data.lastOrgNumber) {
+        if (
+            data.lastOrgNumber
+        ) {
 
             const cursor =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
+
 
             cursor.className =
                 "cursor";
+
 
             cursor.innerHTML = `
                 Cursor:
@@ -1559,12 +1751,19 @@
                 </span>
             `;
 
-            section.appendChild(cursor);
+
+            section.appendChild(
+                cursor
+            );
+
         }
 
 
         const listContainer =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         listContainer.className =
             "change-list-container";
@@ -1578,6 +1777,7 @@
         container.appendChild(
             section
         );
+
     }
 
 
@@ -1608,17 +1808,22 @@
             );
 
 
-        /* Snapshot status */
+        /*
+         * Snapshot status.
+         */
 
         renderStatusBadge(
             document.getElementById(
                 `${prefix}-status-badge`
             ),
-            data?.status || "NOT_RUN"
+            data?.status ||
+            "NOT_RUN"
         );
 
 
-        /* Daily operation status */
+        /*
+         * Overall daily operation status.
+         */
 
         renderStatusBadge(
             document.getElementById(
@@ -1634,7 +1839,9 @@
                 `${prefix}-diff`
             );
 
-        diffContainer.innerHTML = "";
+
+        diffContainer.innerHTML =
+            "";
 
 
         const diff =
@@ -1653,12 +1860,27 @@
                 </div>
             `;
 
+
+            if (
+                prefix === "today"
+            ) {
+
+                updateTriggerButton(
+                    data
+                );
+
+            }
+
+
             return;
         }
 
 
         const header =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         header.className =
             "type-status";
@@ -1701,10 +1923,24 @@
             diff.underenhet,
             data.date
         );
+
+
+        if (
+            prefix === "today"
+        ) {
+
+            updateTriggerButton(
+                data
+            );
+
+        }
+
     }
 
 
-    /* CHANGE ORGANISATION LIST */
+    /*
+     * Change organisation list
+     */
 
     async function loadChangeOrganisations(
         snapshotDate,
@@ -1725,7 +1961,10 @@
             );
 
 
-        /* Same square = collapse */
+        /*
+         * Clicking the same square again
+         * collapses its list.
+         */
 
         if (
             listContainer.classList.contains(
@@ -1737,27 +1976,28 @@
                 "visible"
             );
 
+
             clickedItem.classList.remove(
                 "selected"
             );
 
+
             return;
+
         }
 
-
-        /* Close other selections */
 
         section
             .querySelectorAll(
                 ".change-item"
             )
-            .forEach(item => {
-
-                item.classList.remove(
-                    "selected"
-                );
-
-            });
+            .forEach(
+                item => {
+                    item.classList.remove(
+                        "selected"
+                    );
+                }
+            );
 
 
         clickedItem.classList.add(
@@ -1826,6 +2066,7 @@
                 throw new Error(
                     `HTTP ${response.status}`
                 );
+
             }
 
 
@@ -1870,7 +2111,9 @@
 
                 </div>
             `;
+
         }
+
     }
 
 
@@ -1886,27 +2129,38 @@
 
 
         const header =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         header.className =
             "change-list-header";
 
 
         const title =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         title.className =
             "change-list-title";
+
 
         title.textContent =
             "Organisation numbers";
 
 
         const meta =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         meta.className =
             "change-list-meta";
+
 
         meta.textContent =
             totalReturned === 500
@@ -1914,12 +2168,21 @@
                 : `${totalReturned} found`;
 
 
-        header.appendChild(title);
-        header.appendChild(meta);
+        header.appendChild(
+            title
+        );
+
+
+        header.appendChild(
+            meta
+        );
 
 
         const list =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
+
 
         list.className =
             "change-list";
@@ -1931,75 +2194,105 @@
         ) {
 
             const empty =
-                document.createElement("div");
+                document.createElement(
+                    "div"
+                );
+
 
             empty.className =
                 "change-list-status";
 
+
             empty.textContent =
                 "No organisations found.";
 
-            list.appendChild(empty);
+
+            list.appendChild(
+                empty
+            );
 
         } else {
 
-            rows.forEach(row => {
+            rows.forEach(
+                row => {
 
-                const button =
-                    document.createElement("button");
-
-                button.type =
-                    "button";
-
-                button.className =
-                    "change-org";
-
-                button.textContent =
-                    row.orgNumber;
-
-                button.title =
-                    `Inspect ${row.orgNumber}`;
+                    const button =
+                        document.createElement(
+                            "button"
+                        );
 
 
-                button.addEventListener(
-                    "click",
-                    () => {
-
-                        const input =
-                            document.getElementById(
-                                "org-number"
-                            );
+                    button.type =
+                        "button";
 
 
-                        input.value =
-                            row.orgNumber;
+                    button.className =
+                        "change-org";
 
 
-                        input.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center"
-                        });
+                    button.textContent =
+                        row.orgNumber;
 
 
-                        loadOrganisation();
-
-                    }
-                );
+                    button.title =
+                        `Inspect ${row.orgNumber}`;
 
 
-                list.appendChild(button);
-            });
+                    button.addEventListener(
+                        "click",
+                        () => {
+
+                            const input =
+                                document.getElementById(
+                                    "org-number"
+                                );
+
+
+                            input.value =
+                                row.orgNumber;
+
+
+                            input.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center"
+                            });
+
+
+                            loadOrganisation();
+
+                        }
+                    );
+
+
+                    list.appendChild(
+                        button
+                    );
+
+                }
+            );
+
         }
 
 
-        container.innerHTML = "";
+        container.innerHTML =
+            "";
 
-        container.appendChild(header);
-        container.appendChild(list);
+
+        container.appendChild(
+            header
+        );
+
+
+        container.appendChild(
+            list
+        );
+
     }
 
 
-    /* STATUS API */
+    /*
+     * Status API
+     */
 
     async function loadStatus() {
 
@@ -2027,19 +2320,25 @@
             ]);
 
 
-            if (!todayResponse.ok) {
+            if (
+                !todayResponse.ok
+            ) {
 
                 throw new Error(
                     `Today status: HTTP ${todayResponse.status}`
                 );
+
             }
 
 
-            if (!yesterdayResponse.ok) {
+            if (
+                !yesterdayResponse.ok
+            ) {
 
                 throw new Error(
                     `Yesterday status: HTTP ${yesterdayResponse.status}`
                 );
+
             }
 
 
@@ -2074,6 +2373,7 @@
                 new Date()
                     .toLocaleTimeString();
 
+
         } catch (error) {
 
             console.error(
@@ -2086,11 +2386,190 @@
                 "last-refresh"
             ).textContent =
                 "Status unavailable";
+
         }
+
     }
 
 
-    /* ORGANISATION LOOKUP */
+    /*
+     * Trigger normal daily run
+     */
+
+    async function triggerRun() {
+
+        const button =
+            document.getElementById(
+                "trigger-run-button"
+            );
+
+
+        button.disabled =
+            true;
+
+
+        button.textContent =
+            "Starting...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    TRIGGER_RUN_URL,
+                    {
+                        method: "GET",
+                        cache: "no-store"
+                    }
+                );
+
+
+            const message =
+                await response.text();
+
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    message ||
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            alert(
+                message
+            );
+
+
+            await loadStatus();
+
+
+        } catch (error) {
+
+            console.error(
+                "Could not trigger run",
+                error
+            );
+
+
+            alert(
+                `Could not trigger run: ${error.message}`
+            );
+
+
+            await loadStatus();
+
+        }
+
+    }
+
+
+    /*
+     * Full Salesforce initial load
+     */
+
+    async function triggerFullLoad() {
+
+        const confirmed =
+            window.confirm(
+                "WARNING: Full Salesforce load\n\n" +
+                "This will post EVERY organisation in " +
+                "today's snapshot to Salesforce as NEW organisations.\n\n" +
+                "This is an initial/full load and can create a " +
+                "very large number of Salesforce messages.\n\n" +
+                "Press OK to continue, or Cancel to do nothing."
+            );
+
+
+        if (!confirmed) {
+            return;
+        }
+
+
+        const button =
+            document.getElementById(
+                "full-load-button"
+            );
+
+
+        button.disabled =
+            true;
+
+
+        button.textContent =
+            "Starting full load...";
+
+
+        try {
+
+            const response =
+                await fetch(
+                    FULL_LOAD_URL,
+                    {
+                        method: "GET",
+                        cache: "no-store"
+                    }
+                );
+
+
+            const message =
+                await response.text();
+
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    message ||
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            alert(
+                message
+            );
+
+
+            await loadStatus();
+
+
+        } catch (error) {
+
+            console.error(
+                "Could not start Salesforce full load",
+                error
+            );
+
+
+            alert(
+                `Could not start full load: ${error.message}`
+            );
+
+
+        } finally {
+
+            button.disabled =
+                false;
+
+
+            button.textContent =
+                "Full load today's snapshot";
+
+        }
+
+    }
+
+
+    /*
+     * Organisation lookup
+     */
 
     async function loadOrganisation() {
 
@@ -2110,7 +2589,9 @@
                 "Please enter an organisation number."
             );
 
+
             return;
+
         }
 
 
@@ -2245,7 +2726,9 @@
             showLookupError(
                 error.message
             );
+
         }
+
     }
 
 
@@ -2256,23 +2739,31 @@
         if (
             response.status === 404
         ) {
+
             return null;
+
         }
 
 
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
                 `Organisation lookup failed: HTTP ${response.status}`
             );
+
         }
 
 
         return response.json();
+
     }
 
 
-    /* ORGANISATION COMPARISON */
+    /*
+     * Organisation comparison
+     */
 
     function parsePayload(
         payload
@@ -2282,14 +2773,18 @@
             payload === null ||
             payload === undefined
         ) {
+
             return null;
+
         }
 
 
         if (
             typeof payload !== "string"
         ) {
+
             return payload;
+
         }
 
 
@@ -2302,7 +2797,9 @@
         } catch (_) {
 
             return payload;
+
         }
+
     }
 
 
@@ -2311,19 +2808,24 @@
     ) {
 
         const parsed =
-            parsePayload(payload);
+            parsePayload(
+                payload
+            );
 
 
         if (
             typeof parsed === "string"
         ) {
+
             return parsed;
+
         }
 
 
         return JSON.stringify(
             parsed
         );
+
     }
 
 
@@ -2332,13 +2834,17 @@
     ) {
 
         const parsed =
-            parsePayload(payload);
+            parsePayload(
+                payload
+            );
 
 
         if (
             typeof parsed === "string"
         ) {
+
             return parsed;
+
         }
 
 
@@ -2347,6 +2853,7 @@
             null,
             2
         );
+
     }
 
 
@@ -2367,16 +2874,22 @@
             );
 
 
-        todayBody.innerHTML = "";
-        yesterdayBody.innerHTML = "";
+        todayBody.innerHTML =
+            "";
+
+
+        yesterdayBody.innerHTML =
+            "";
 
 
         const todaySnapshots =
-            todayData?.snapshots || [];
+            todayData?.snapshots ||
+            [];
 
 
         const yesterdaySnapshots =
-            yesterdayData?.snapshots || [];
+            yesterdayData?.snapshots ||
+            [];
 
 
         const types = [
@@ -2407,96 +2920,136 @@
 
 
             return;
+
         }
 
 
-        types.forEach(type => {
+        types.forEach(
+            type => {
 
-            const today =
-                todaySnapshots.find(
-                    snapshot =>
-                        snapshot.orgType === type
-                );
-
-
-            const yesterday =
-                yesterdaySnapshots.find(
-                    snapshot =>
-                        snapshot.orgType === type
-                );
+                const today =
+                    todaySnapshots.find(
+                        snapshot =>
+                            snapshot.orgType === type
+                    );
 
 
-            /* Neither snapshot has this type */
-
-            if (
-                !today &&
-                !yesterday
-            ) {
-                return;
-            }
+                const yesterday =
+                    yesterdaySnapshots.find(
+                        snapshot =>
+                            snapshot.orgType === type
+                    );
 
 
-            /* SAME */
+                /*
+                 * Neither snapshot has this type.
+                 */
 
-            if (
-                today &&
-                yesterday &&
-                normalizedPayload(
-                    today.payload
-                ) ===
-                normalizedPayload(
-                    yesterday.payload
-                )
-            ) {
+                if (
+                    !today &&
+                    !yesterday
+                ) {
 
-                renderSameOrganisation(
-                    todayBody,
-                    yesterdayBody,
-                    type,
-                    today
-                );
+                    return;
 
-                return;
-            }
+                }
 
 
-            /* NEW */
+                /*
+                 * SAME
+                 */
 
-            if (
-                today &&
-                !yesterday
-            ) {
+                if (
+                    today &&
+                    yesterday &&
+                    normalizedPayload(
+                        today.payload
+                    ) ===
+                    normalizedPayload(
+                        yesterday.payload
+                    )
+                ) {
+
+                    renderSameOrganisation(
+                        todayBody,
+                        yesterdayBody,
+                        type,
+                        today
+                    );
+
+
+                    return;
+
+                }
+
+
+                /*
+                 * NEW
+                 */
+
+                if (
+                    today &&
+                    !yesterday
+                ) {
+
+                    renderOrganisationPanel(
+                        todayBody,
+                        type,
+                        today,
+                        "NEW"
+                    );
+
+
+                    renderNotFoundPanel(
+                        yesterdayBody,
+                        type,
+                        "Not present yesterday"
+                    );
+
+
+                    return;
+
+                }
+
+
+                /*
+                 * REMOVED
+                 */
+
+                if (
+                    !today &&
+                    yesterday
+                ) {
+
+                    renderNotFoundPanel(
+                        todayBody,
+                        type,
+                        "Not present today"
+                    );
+
+
+                    renderOrganisationPanel(
+                        yesterdayBody,
+                        type,
+                        yesterday,
+                        "REMOVED"
+                    );
+
+
+                    return;
+
+                }
+
+
+                /*
+                 * UPDATED
+                 */
 
                 renderOrganisationPanel(
                     todayBody,
                     type,
                     today,
-                    "NEW"
-                );
-
-
-                renderNotFoundPanel(
-                    yesterdayBody,
-                    type,
-                    "Not present yesterday"
-                );
-
-
-                return;
-            }
-
-
-            /* REMOVED */
-
-            if (
-                !today &&
-                yesterday
-            ) {
-
-                renderNotFoundPanel(
-                    todayBody,
-                    type,
-                    "Not present today"
+                    "UPDATED"
                 );
 
 
@@ -2504,32 +3057,12 @@
                     yesterdayBody,
                     type,
                     yesterday,
-                    "REMOVED"
+                    "PREVIOUS"
                 );
 
-
-                return;
             }
+        );
 
-
-            /* UPDATED */
-
-            renderOrganisationPanel(
-                todayBody,
-                type,
-                today,
-                "UPDATED"
-            );
-
-
-            renderOrganisationPanel(
-                yesterdayBody,
-                type,
-                yesterday,
-                "PREVIOUS"
-            );
-
-        });
     }
 
 
@@ -2578,6 +3111,7 @@
                 Same data as today
             </div>
         `;
+
     }
 
 
@@ -2652,6 +3186,7 @@
         element.appendChild(
             panel
         );
+
     }
 
 
@@ -2690,10 +3225,13 @@
         element.appendChild(
             panel
         );
+
     }
 
 
-    /* LOOKUP ERRORS */
+    /*
+     * Lookup errors
+     */
 
     function showLookupError(
         message
@@ -2711,6 +3249,7 @@
 
         element.style.display =
             "block";
+
     }
 
 
@@ -2724,10 +3263,13 @@
 
         element.style.display =
             "none";
+
     }
 
 
-    /* EVENTS */
+    /*
+     * Events
+     */
 
     document
         .getElementById(
@@ -2736,6 +3278,26 @@
         .addEventListener(
             "click",
             loadStatus
+        );
+
+
+    document
+        .getElementById(
+            "trigger-run-button"
+        )
+        .addEventListener(
+            "click",
+            triggerRun
+        );
+
+
+    document
+        .getElementById(
+            "full-load-button"
+        )
+        .addEventListener(
+            "click",
+            triggerFullLoad
         );
 
 
@@ -2760,14 +3322,18 @@
                 if (
                     event.key === "Enter"
                 ) {
+
                     loadOrganisation();
+
                 }
 
             }
         );
 
 
-    /* Initial load */
+    /*
+     * Initial load
+     */
 
     loadStatus();
 
