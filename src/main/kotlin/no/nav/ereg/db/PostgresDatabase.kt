@@ -897,4 +897,35 @@ object PostgresDatabase {
                     ),
             )
         }
+
+    fun resetSnapshot(snapshotDate: LocalDate) {
+        transaction(database) {
+            // Remove all potentially partial snapshot data first.
+            EnhetSnapshotTable.deleteWhere {
+                EnhetSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            UnderenhetSnapshotTable.deleteWhere {
+                UnderenhetSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            // Remove snapshot metadata.
+            EnhetsregisterSnapshotTable.deleteWhere {
+                EnhetsregisterSnapshotTable.snapshotDate eq snapshotDate
+            }
+
+            // Nothing downstream should survive a discarded snapshot.
+            SalesforceInitialLoadProgressTable.deleteWhere {
+                SalesforceInitialLoadProgressTable.snapshotDate eq snapshotDate
+            }
+
+            SalesforceDiffProgressTable.deleteWhere {
+                SalesforceDiffProgressTable.snapshotDate eq snapshotDate
+            }
+
+            SalesforceDiffOrganisationTable.deleteWhere {
+                SalesforceDiffOrganisationTable.snapshotDate eq snapshotDate
+            }
+        }
+    }
 }

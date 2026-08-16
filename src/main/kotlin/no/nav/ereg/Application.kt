@@ -740,7 +740,7 @@ class Application {
                 }
 
                 EnhetsregisterSnapshotStatus.FAILED -> {
-                    PostgresDatabase.deleteEnhetsregisterSnapshot(today)
+                    PostgresDatabase.resetSnapshot(today)
                     startTodayRun(today)
 
                     Response(Status.ACCEPTED)
@@ -1765,7 +1765,7 @@ class Application {
                                     "Removing partial snapshot and restarting."
                             }
 
-                            PostgresDatabase.resetInterruptedSnapshot(today)
+                            PostgresDatabase.resetSnapshot(today)
 
                             startTodayRun(today)
                         }
