@@ -786,21 +786,22 @@ object PostgresDatabase {
                 exec(
                     """
                     SELECT
-                        relname AS table_name,
-                        pg_total_relation_size(relid) AS total_size_bytes,
+                        s.relname AS table_name,
+                        pg_total_relation_size(s.relid) AS total_size_bytes,
                         pg_size_pretty(
-                            pg_total_relation_size(relid)
+                            pg_total_relation_size(s.relid)
                         ) AS total_size,
                         COALESCE(
-                            n_live_tup,
+                            p.n_live_tup,
                             0
                         )::bigint AS row_estimate
-                    FROM pg_catalog.pg_statio_user_tables
+                    FROM pg_catalog.pg_statio_user_tables s
+                    LEFT JOIN pg_catalog.pg_stat_user_tables p
+                        ON p.relid = s.relid
                     ORDER BY
-                        pg_total_relation_size(relid) DESC
+                        pg_total_relation_size(s.relid) DESC
                     """.trimIndent(),
                 ) { rs ->
-
                     buildList {
                         while (rs.next()) {
                             add(
@@ -810,19 +811,14 @@ object PostgresDatabase {
                                     totalSize =
                                         rs.getString("total_size"),
                                     totalSizeBytes =
-                                        rs.getLong(
-                                            "total_size_bytes",
-                                        ),
+                                        rs.getLong("total_size_bytes"),
                                     rowEstimate =
-                                        rs.getLong(
-                                            "row_estimate",
-                                        ),
+                                        rs.getLong("row_estimate"),
                                 ),
                             )
                         }
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
 
             val enhetDates =
                 exec(
@@ -842,8 +838,7 @@ object PostgresDatabase {
                             )
                         }
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
 
             val underenhetDates =
                 exec(
@@ -863,8 +858,7 @@ object PostgresDatabase {
                             )
                         }
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
 
             val metadataDates =
                 exec(
@@ -884,8 +878,7 @@ object PostgresDatabase {
                             )
                         }
                     }
-                }
-                    ?: emptyList()
+                } ?: emptyList()
 
             DatabaseDiagnostic(
                 tables = tables,

@@ -582,6 +582,12 @@ class Application {
             )
         }
 
+        log.info {
+            "$snapshotDate Url: $url, source: " +
+                "ETag=${response.header("ETag")}, " +
+                "Last-Modified=${response.header("Last-Modified")}"
+        }
+
         response.body
             .gunzippedStream(
                 maxSize = 10L * 1024 * 1024 * 1024,
