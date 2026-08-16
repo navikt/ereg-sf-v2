@@ -2004,9 +2004,9 @@ data class DatabaseTableDiagnostic(
 )
 
 data class SnapshotDateDiagnostic(
-    val enhet: List<LocalDate>,
-    val underenhet: List<LocalDate>,
-    val metadata: List<LocalDate>,
+    val enhet: List<String>,
+    val underenhet: List<String>,
+    val metadata: List<String>,
 )
 
 data class DatabaseDiagnostic(

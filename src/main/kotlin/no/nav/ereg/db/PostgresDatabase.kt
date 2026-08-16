@@ -831,10 +831,10 @@ object PostgresDatabase {
                     buildList {
                         while (rs.next()) {
                             add(
-                                rs.getObject(
-                                    "snapshot_date",
-                                    LocalDate::class.java,
-                                ),
+                                rs
+                                    .getDate("snapshot_date")
+                                    .toLocalDate()
+                                    .toString(),
                             )
                         }
                     }
@@ -851,10 +851,10 @@ object PostgresDatabase {
                     buildList {
                         while (rs.next()) {
                             add(
-                                rs.getObject(
-                                    "snapshot_date",
-                                    LocalDate::class.java,
-                                ),
+                                rs
+                                    .getDate("snapshot_date")
+                                    .toLocalDate()
+                                    .toString(),
                             )
                         }
                     }
@@ -871,10 +871,10 @@ object PostgresDatabase {
                     buildList {
                         while (rs.next()) {
                             add(
-                                rs.getObject(
-                                    "snapshot_date",
-                                    LocalDate::class.java,
-                                ),
+                                rs
+                                    .getDate("snapshot_date")
+                                    .toLocalDate()
+                                    .toString(),
                             )
                         }
                     }
