@@ -67,7 +67,7 @@ object PostgresDatabase {
             minimumIdle = 1
             maxLifetime = 26000
             maximumPoolSize = 10
-            connectionTimeout = 250
+            connectionTimeout = 2500
             idleTimeout = 10000
             isAutoCommit = false
             // Isolation level that ensure the same snapshot of db during one transaction:

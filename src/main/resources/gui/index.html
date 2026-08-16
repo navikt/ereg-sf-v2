@@ -1488,29 +1488,39 @@
     }
 
 
-    function updateTriggerButton(data) {
 
+    function updateTriggerButton(data) {
         const button =
             document.getElementById(
                 "trigger-run-button"
             );
 
+        const snapshotInProgress =
+            data?.status === "LOADING";
 
-        const done =
-            todayRunIsFullyDone(
-                data
-            );
+        const operationInProgress =
+            data?.salesforceDiff?.status === "IN_PROGRESS";
 
+        const fullyDone =
+            data?.status === "DONE" &&
+            data?.salesforceDiff?.status === "DONE";
 
-        button.disabled =
-            done;
+        const disabled =
+            snapshotInProgress ||
+            operationInProgress ||
+            fullyDone;
 
+        button.disabled = disabled;
 
-        button.textContent =
-            done
-                ? "Today's run complete"
-                : "Trigger run";
-
+        if (fullyDone) {
+            button.textContent = "Today's run complete";
+        } else if (snapshotInProgress) {
+            button.textContent = "Snapshot loading...";
+        } else if (operationInProgress) {
+            button.textContent = "Run in progress...";
+        } else {
+            button.textContent = "Trigger run";
+        }
     }
 
 
