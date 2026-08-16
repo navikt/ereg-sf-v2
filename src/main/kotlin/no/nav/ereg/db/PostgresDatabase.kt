@@ -22,9 +22,12 @@ import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import mu.KotlinLogging
 import no.nav.ereg.ChangeType
+import no.nav.ereg.DatabaseDiagnostic
+import no.nav.ereg.DatabaseTableDiagnostic
 import no.nav.ereg.DiffOrganisationRow
 import no.nav.ereg.OrgType
 import no.nav.ereg.OrganisationChange
+import no.nav.ereg.SnapshotDateDiagnostic
 import no.nav.ereg.env
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -776,4 +779,122 @@ object PostgresDatabase {
             }
         }
     }
+
+    fun databaseDiagnostics(): DatabaseDiagnostic =
+        transaction(database) {
+            val tables =
+                exec(
+                    """
+                    SELECT
+                        relname AS table_name,
+                        pg_total_relation_size(relid) AS total_size_bytes,
+                        pg_size_pretty(
+                            pg_total_relation_size(relid)
+                        ) AS total_size,
+                        COALESCE(
+                            n_live_tup,
+                            0
+                        )::bigint AS row_estimate
+                    FROM pg_catalog.pg_statio_user_tables
+                    ORDER BY
+                        pg_total_relation_size(relid) DESC
+                    """.trimIndent(),
+                ) { rs ->
+
+                    buildList {
+                        while (rs.next()) {
+                            add(
+                                DatabaseTableDiagnostic(
+                                    table =
+                                        rs.getString("table_name"),
+                                    totalSize =
+                                        rs.getString("total_size"),
+                                    totalSizeBytes =
+                                        rs.getLong(
+                                            "total_size_bytes",
+                                        ),
+                                    rowEstimate =
+                                        rs.getLong(
+                                            "row_estimate",
+                                        ),
+                                ),
+                            )
+                        }
+                    }
+                }
+                    ?: emptyList()
+
+            val enhetDates =
+                exec(
+                    """
+                    SELECT DISTINCT snapshot_date
+                    FROM enhet_snapshot
+                    ORDER BY snapshot_date DESC
+                    """.trimIndent(),
+                ) { rs ->
+                    buildList {
+                        while (rs.next()) {
+                            add(
+                                rs.getObject(
+                                    "snapshot_date",
+                                    LocalDate::class.java,
+                                ),
+                            )
+                        }
+                    }
+                }
+                    ?: emptyList()
+
+            val underenhetDates =
+                exec(
+                    """
+                    SELECT DISTINCT snapshot_date
+                    FROM underenhet_snapshot
+                    ORDER BY snapshot_date DESC
+                    """.trimIndent(),
+                ) { rs ->
+                    buildList {
+                        while (rs.next()) {
+                            add(
+                                rs.getObject(
+                                    "snapshot_date",
+                                    LocalDate::class.java,
+                                ),
+                            )
+                        }
+                    }
+                }
+                    ?: emptyList()
+
+            val metadataDates =
+                exec(
+                    """
+                    SELECT DISTINCT snapshot_date
+                    FROM enhetsregister_snapshot
+                    ORDER BY snapshot_date DESC
+                    """.trimIndent(),
+                ) { rs ->
+                    buildList {
+                        while (rs.next()) {
+                            add(
+                                rs.getObject(
+                                    "snapshot_date",
+                                    LocalDate::class.java,
+                                ),
+                            )
+                        }
+                    }
+                }
+                    ?: emptyList()
+
+            DatabaseDiagnostic(
+                tables = tables,
+                snapshotDates =
+                    SnapshotDateDiagnostic(
+                        enhet = enhetDates,
+                        underenhet = underenhetDates,
+                        metadata = metadataDates,
+                    ),
+            )
+        }
 }

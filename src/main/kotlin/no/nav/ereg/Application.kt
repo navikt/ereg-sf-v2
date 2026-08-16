@@ -115,6 +115,7 @@ class Application {
             "/internal/salesforce/testLoad" bind Method.GET to testSending5EnhetAnd5Underenhet,
             "/internal/sendTodayChanges" bind Method.GET to sendTodayChangesHandler,
             "/internal/gui/api/diff-organisations" bind Method.GET to diffOrganisationsHandler,
+            "/internal/databaseDiagnostics" bind Method.GET to databaseDiagnosticsHandler,
         )
     // )
 
@@ -1841,6 +1842,31 @@ class Application {
             }
         }
     }
+
+    private val databaseDiagnosticsHandler: HttpHandler = {
+        try {
+            val diagnostics =
+                PostgresDatabase.databaseDiagnostics()
+
+            Response(Status.OK)
+                .header(
+                    "Content-Type",
+                    "application/json",
+                ).body(
+                    gson.toJson(diagnostics),
+                )
+        } catch (e: Exception) {
+            log.error(e) {
+                "Could not read database diagnostics"
+            }
+
+            Response(Status.INTERNAL_SERVER_ERROR)
+                .body(
+                    "Could not read database diagnostics: " +
+                        e.message,
+                )
+        }
+    }
 }
 
 enum class ChangeType {
@@ -1962,4 +1988,22 @@ data class DiffOrganisationRow(
     val orgNumber: String,
     val orgType: String,
     val changeType: String,
+)
+
+data class DatabaseTableDiagnostic(
+    val table: String,
+    val totalSize: String,
+    val totalSizeBytes: Long,
+    val rowEstimate: Long,
+)
+
+data class SnapshotDateDiagnostic(
+    val enhet: List<LocalDate>,
+    val underenhet: List<LocalDate>,
+    val metadata: List<LocalDate>,
+)
+
+data class DatabaseDiagnostic(
+    val tables: List<DatabaseTableDiagnostic>,
+    val snapshotDates: SnapshotDateDiagnostic,
 )
