@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>EREG Database Diagnostics</title>
+
+    <style>
+        :root {
+            --background: #f4f6f8;
+            --surface: #ffffff;
+            --surface-soft: #f8fafc;
+
+            --border: #d9dee5;
+            --border-strong: #c5ccd6;
+
+            --text: #17212b;
+            --muted: #687580;
+
+            --blue: #2563eb;
+            --blue-soft: #eff6ff;
+
+            --green: #047857;
+            --green-soft: #ecfdf5;
+
+            --yellow: #b45309;
+            --yellow-soft: #fffbeb;
+
+            --red: #b91c1c;
+            --red-soft: #fef2f2;
+
+            --gray: #64748b;
+            --gray-soft: #f1f5f9;
+
+            --shadow:
+                    0 1px 2px rgba(15, 23, 42, 0.05),
+                    0 2px 8px rgba(15, 23, 42, 0.04);
+
+            --radius: 10px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            background: var(--background);
+            color: var(--text);
+
+            font-family:
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    Roboto,
+                    Helvetica,
+                    Arial,
+                    sans-serif;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+
+            background: rgba(255, 255, 255, 0.96);
+            border-bottom: 1px solid var(--border);
+
+            backdrop-filter: blur(8px);
+        }
+
+        .header-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 16px 24px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 9px;
+
+            background: var(--blue-soft);
+            color: var(--blue);
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        h1 {
+            margin: 0;
+
+            font-size: 19px;
+            line-height: 1.2;
+        }
+
+        .subtitle {
+            margin-top: 3px;
+
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        main {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        section {
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 16px;
+
+            margin-bottom: 12px;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .section-description {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        button {
+            border: 1px solid var(--border-strong);
+            background: var(--surface);
+            color: var(--text);
+
+            border-radius: 7px;
+            padding: 9px 13px;
+
+            font: inherit;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: var(--surface-soft);
+        }
+
+        /* SUMMARY */
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(3, minmax(0, 1fr));
+
+            gap: 14px;
+        }
+
+        .summary-card {
+            background: var(--surface);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+
+            box-shadow: var(--shadow);
+
+            padding: 16px;
+        }
+
+        .summary-label {
+            color: var(--muted);
+
+            font-size: 11px;
+            text-transform: uppercase;
+
+            letter-spacing: 0.04em;
+        }
+
+        .summary-value {
+            margin-top: 6px;
+
+            font-size: 25px;
+            font-weight: 750;
+        }
+
+        .summary-value.ok {
+            color: var(--green);
+        }
+
+        .summary-value.warning {
+            color: var(--yellow);
+        }
+
+        .summary-value.danger {
+            color: var(--red);
+        }
+
+        .summary-detail {
+            margin-top: 5px;
+
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* RETENTION */
+
+        .retention-grid {
+            display: grid;
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+
+            gap: 16px;
+        }
+
+        .retention-card {
+            background: var(--surface);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+
+            box-shadow: var(--shadow);
+
+            overflow: hidden;
+        }
+
+        .retention-card-header {
+            padding: 14px 16px;
+
+            border-bottom: 1px solid var(--border);
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .retention-title {
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .retention-state {
+            padding: 5px 9px;
+
+            border-radius: 999px;
+
+            font-size: 10px;
+            font-weight: 700;
+
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .retention-ok {
+            color: var(--green);
+            background: var(--green-soft);
+        }
+
+        .retention-warning {
+            color: var(--yellow);
+            background: var(--yellow-soft);
+        }
+
+        .date-list {
+            padding: 14px 16px;
+
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+        }
+
+        .date-pill {
+            padding: 6px 9px;
+
+            border-radius: 6px;
+
+            background: var(--surface-soft);
+            border: 1px solid var(--border);
+
+            font-family:
+                    ui-monospace,
+                    SFMono-Regular,
+                    Menlo,
+                    Monaco,
+                    Consolas,
+                    monospace;
+
+            font-size: 11px;
+        }
+
+        .date-pill.latest {
+            background: var(--green-soft);
+            border-color: #bbf7d0;
+            color: var(--green);
+        }
+
+        .date-pill.old {
+            background: var(--yellow-soft);
+            border-color: #fde68a;
+            color: var(--yellow);
+        }
+
+        /* TABLE */
+
+        .table-card {
+            background: var(--surface);
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+
+            box-shadow: var(--shadow);
+
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+
+            color: var(--muted);
+            background: #fafafa;
+
+            border-bottom: 1px solid var(--border);
+
+            padding: 11px 14px;
+        }
+
+        td {
+            padding: 11px 14px;
+
+            border-bottom: 1px solid var(--border);
+
+            font-size: 12px;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-name {
+            font-family:
+                    ui-monospace,
+                    SFMono-Regular,
+                    Menlo,
+                    Monaco,
+                    Consolas,
+                    monospace;
+
+            font-size: 12px;
+        }
+
+        .size-cell {
+            font-weight: 700;
+        }
+
+        .size-big {
+            color: var(--red);
+        }
+
+        .size-medium {
+            color: var(--yellow);
+        }
+
+        .size-small {
+            color: var(--green);
+        }
+
+        .number-cell {
+            text-align: right;
+
+            font-variant-numeric:
+                    tabular-nums;
+
+            white-space: nowrap;
+        }
+
+        .empty {
+            padding: 20px;
+
+            color: var(--muted);
+            text-align: center;
+
+            font-size: 12px;
+        }
+
+        .warning-box {
+            margin-top: 12px;
+
+            padding: 12px 14px;
+
+            border: 1px solid #fde68a;
+            background: var(--yellow-soft);
+
+            border-radius: 7px;
+
+            color: var(--yellow);
+
+            font-size: 12px;
+        }
+
+        .ok-box {
+            margin-top: 12px;
+
+            padding: 12px 14px;
+
+            border: 1px solid #bbf7d0;
+            background: var(--green-soft);
+
+            border-radius: 7px;
+
+            color: var(--green);
+
+            font-size: 12px;
+        }
+
+        .error-box {
+            padding: 14px;
+
+            border: 1px solid #fecaca;
+            background: var(--red-soft);
+
+            border-radius: 8px;
+
+            color: var(--red);
+
+            font-size: 12px;
+        }
+
+        .footer {
+            color: var(--muted);
+
+            text-align: center;
+
+            font-size: 11px;
+
+            padding: 18px 0 4px;
+        }
+
+        @media (max-width: 900px) {
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .retention-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 650px) {
+            main {
+                padding: 14px;
+            }
+
+            .header-inner {
+                padding: 12px 14px;
+
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .table-card {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 650px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="header-inner">
+
+        <div class="brand">
+
+            <div class="brand-icon">
+                DB
+            </div>
+
+            <div>
+                <h1>
+                    EREG Database Diagnostics
+                </h1>
+
+                <div class="subtitle">
+                    Storage usage and snapshot retention
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="header-actions">
+
+            <span id="last-refresh">
+                Not loaded
+            </span>
+
+            <button id="refresh-button">
+                Refresh
+            </button>
+
+        </div>
+
+    </div>
+</header>
+
+
+<main>
+
+    <!-- SUMMARY -->
+
+    <section>
+
+        <div class="section-header">
+
+            <div>
+                <h2>
+                    Database overview
+                </h2>
+
+                <div class="section-description">
+                    PostgreSQL table sizes including indexes and TOAST
+                </div>
+            </div>
+
+        </div>
+
+
+        <div
+                id="summary-grid"
+                class="summary-grid"
+        >
+        </div>
+
+    </section>
+
+
+    <!-- TABLE SIZES -->
+
+    <section>
+
+        <div class="section-header">
+
+            <div>
+                <h2>
+                    Table sizes
+                </h2>
+
+                <div class="section-description">
+                    Largest tables first
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="table-card">
+
+            <table>
+
+                <thead>
+
+                <tr>
+                    <th>
+                        Table
+                    </th>
+
+                    <th>
+                        Size
+                    </th>
+
+                    <th>
+                        Bytes
+                    </th>
+
+                    <th>
+                        Estimated rows
+                    </th>
+                </tr>
+
+                </thead>
+
+
+                <tbody id="tables-body">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+
+    <!-- SNAPSHOT RETENTION -->
+
+    <section>
+
+        <div class="section-header">
+
+            <div>
+                <h2>
+                    Snapshot retention
+                </h2>
+
+                <div class="section-description">
+                    Snapshot payload tables should contain only today and yesterday
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="retention-grid">
+
+            <div class="retention-card">
+
+                <div class="retention-card-header">
+
+                    <div class="retention-title">
+                        ENHET snapshot
+                    </div>
+
+                    <div
+                            id="enhet-retention-state"
+                            class="retention-state"
+                    >
+                        —
+                    </div>
+
+                </div>
+
+
+                <div
+                        id="enhet-dates"
+                        class="date-list"
+                >
+                </div>
+
+                <div id="enhet-warning"></div>
+
+            </div>
+
+
+            <div class="retention-card">
+
+                <div class="retention-card-header">
+
+                    <div class="retention-title">
+                        UNDERENHET snapshot
+                    </div>
+
+                    <div
+                            id="underenhet-retention-state"
+                            class="retention-state"
+                    >
+                        —
+                    </div>
+
+                </div>
+
+
+                <div
+                        id="underenhet-dates"
+                        class="date-list"
+                >
+                </div>
+
+                <div id="underenhet-warning"></div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- METADATA -->
+
+    <section>
+
+        <div class="section-header">
+
+            <div>
+                <h2>
+                    Operational metadata history
+                </h2>
+
+                <div class="section-description">
+                    Older dates here are expected and retained for diagnostics/history
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="retention-card">
+
+            <div
+                    id="metadata-dates"
+                    class="date-list"
+            >
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <div class="footer">
+        EREG internal diagnostics
+    </div>
+
+</main>
+
+
+<script>
+
+    const DIAGNOSTICS_URL =
+        "/internal/databaseDiagnostics";
+
+
+    function escapeHtml(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return "";
+        }
+
+        return String(value)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+
+    }
+
+
+    function formatNumber(value) {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+            return "—";
+        }
+
+        return Number(value)
+            .toLocaleString("en-US");
+
+    }
+
+
+    function formatBytes(bytes) {
+
+        if (
+            bytes === null ||
+            bytes === undefined ||
+            Number(bytes) === 0
+        ) {
+            return "0 B";
+        }
+
+
+        const units = [
+            "B",
+            "KB",
+            "MB",
+            "GB",
+            "TB"
+        ];
+
+
+        let value =
+            Number(bytes);
+
+        let unitIndex = 0;
+
+
+        while (
+            value >= 1024 &&
+            unitIndex < units.length - 1
+            ) {
+            value /= 1024;
+            unitIndex++;
+        }
+
+
+        return (
+                value >= 10
+                    ? value.toFixed(0)
+                    : value.toFixed(1)
+            ) +
+            " " +
+            units[unitIndex];
+
+    }
+
+
+    function sizeClass(bytes) {
+
+        const gb =
+            Number(bytes) /
+            (1024 * 1024 * 1024);
+
+
+        if (gb >= 1) {
+            return "size-big";
+        }
+
+        if (gb >= 0.05) {
+            return "size-medium";
+        }
+
+        return "size-small";
+
+    }
+
+
+    function uniqueDates(
+        dates
+    ) {
+
+        return [
+            ...new Set(
+                dates || []
+            )
+        ].sort();
+
+    }
+
+
+    function renderSummary(
+        tables
+    ) {
+
+        const grid =
+            document.getElementById(
+                "summary-grid"
+            );
+
+
+        const totalBytes =
+            (tables || [])
+                .reduce(
+                    (sum, table) =>
+                        sum +
+                        Number(
+                            table.totalSizeBytes || 0
+                        ),
+                    0
+                );
+
+
+        const snapshotBytes =
+            (tables || [])
+                .filter(
+                    table =>
+                        table.table ===
+                        "enhet_snapshot" ||
+                        table.table ===
+                        "underenhet_snapshot"
+                )
+                .reduce(
+                    (sum, table) =>
+                        sum +
+                        Number(
+                            table.totalSizeBytes || 0
+                        ),
+                    0
+                );
+
+
+        const largestTable =
+            [...(tables || [])]
+                .sort(
+                    (a, b) =>
+                        Number(b.totalSizeBytes) -
+                        Number(a.totalSizeBytes)
+                )[0];
+
+
+        grid.innerHTML = `
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Total user table size
+                </div>
+
+                <div class="summary-value">
+                    ${escapeHtml(
+            formatBytes(totalBytes)
+        )}
+                </div>
+
+                <div class="summary-detail">
+                    ${formatNumber(
+            totalBytes
+        )} bytes
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Snapshot tables
+                </div>
+
+                <div class="summary-value">
+                    ${escapeHtml(
+            formatBytes(snapshotBytes)
+        )}
+                </div>
+
+                <div class="summary-detail">
+                    ENHET + UNDERENHET
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Largest table
+                </div>
+
+                <div class="summary-value">
+                    ${largestTable
+            ? escapeHtml(
+                largestTable.table
+            )
+            : "—"}
+                </div>
+
+                <div class="summary-detail">
+                    ${largestTable
+            ? escapeHtml(
+                largestTable.totalSize
+            )
+            : ""}
+                </div>
+
+            </div>
+        `;
+
+    }
+
+
+    function renderTables(
+        tables
+    ) {
+
+        const body =
+            document.getElementById(
+                "tables-body"
+            );
+
+
+        body.innerHTML =
+            "";
+
+
+        if (
+            !tables ||
+            tables.length === 0
+        ) {
+
+            body.innerHTML = `
+                <tr>
+                    <td
+                        colspan="4"
+                        class="empty"
+                    >
+                        No tables found.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        tables.forEach(
+            table => {
+
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                const bytes =
+                    Number(
+                        table.totalSizeBytes || 0
+                    );
+
+
+                row.innerHTML = `
+
+                    <td>
+                        <div class="table-name">
+                            ${escapeHtml(
+                    table.table
+                )}
+                        </div>
+                    </td>
+
+                    <td>
+                        <div class="size-cell ${sizeClass(bytes)}">
+                            ${escapeHtml(
+                    table.totalSize
+                )}
+                        </div>
+                    </td>
+
+                    <td class="number-cell">
+                        ${formatNumber(bytes)}
+                    </td>
+
+                    <td class="number-cell">
+                        ${formatNumber(
+                    table.rowEstimate
+                )}
+                    </td>
+                `;
+
+
+                body.appendChild(
+                    row
+                );
+
+            }
+        );
+
+    }
+
+
+    function renderRetention(
+        elementId,
+        warningId,
+        dates
+    ) {
+
+        const stateElement =
+            document.getElementById(
+                elementId
+                    .replace(
+                        "-dates",
+                        "-retention-state"
+                    )
+            );
+
+
+        const dateContainer =
+            document.getElementById(
+                elementId
+            );
+
+
+        const warningContainer =
+            document.getElementById(
+                warningId
+            );
+
+
+        const sortedDates =
+            uniqueDates(
+                dates
+            );
+
+
+        dateContainer.innerHTML =
+            "";
+
+
+        warningContainer.innerHTML =
+            "";
+
+
+        if (
+            sortedDates.length === 0
+        ) {
+
+            stateElement.textContent =
+                "NO DATA";
+
+            stateElement.className =
+                "retention-state retention-warning";
+
+            dateContainer.innerHTML = `
+                <div class="empty">
+                    No snapshot dates found.
+                </div>
+            `;
+
+            return;
+
+        }
+
+
+        const healthy =
+            sortedDates.length <= 2;
+
+
+        stateElement.textContent =
+            healthy
+                ? "HEALTHY"
+                : `${sortedDates.length} DATES`;
+
+
+        stateElement.className =
+            "retention-state " +
+            (
+                healthy
+                    ? "retention-ok"
+                    : "retention-warning"
+            );
+
+
+        const latestDates =
+            sortedDates
+                .slice(-2);
+
+
+        sortedDates
+            .slice()
+            .reverse()
+            .forEach(
+                date => {
+
+                    const pill =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    pill.className =
+                        "date-pill " +
+                        (
+                            latestDates.includes(
+                                date
+                            )
+                                ? "latest"
+                                : "old"
+                        );
+
+
+                    pill.textContent =
+                        date;
+
+
+                    dateContainer.appendChild(
+                        pill
+                    );
+
+                }
+            );
+
+
+        if (!healthy) {
+
+            warningContainer.innerHTML = `
+                <div class="warning-box">
+                    Cleanup should normally leave only
+                    today and yesterday in this snapshot table.
+                    Older snapshot dates are present.
+                </div>
+            `;
+
+        } else {
+
+            warningContainer.innerHTML = `
+                <div class="ok-box">
+                    Snapshot retention looks correct:
+                    only the two newest dates are present.
+                </div>
+            `;
+
+        }
+
+    }
+
+
+    function renderMetadataDates(
+        dates
+    ) {
+
+        const container =
+            document.getElementById(
+                "metadata-dates"
+            );
+
+
+        const sortedDates =
+            uniqueDates(
+                dates
+            )
+                .reverse();
+
+
+        container.innerHTML =
+            "";
+
+
+        if (
+            sortedDates.length === 0
+        ) {
+
+            container.innerHTML = `
+                <div class="empty">
+                    No metadata dates found.
+                </div>
+            `;
+
+            return;
+
+        }
+
+
+        sortedDates.forEach(
+            date => {
+
+                const pill =
+                    document.createElement(
+                        "div"
+                    );
+
+
+                pill.className =
+                    "date-pill";
+
+
+                pill.textContent =
+                    date;
+
+
+                container.appendChild(
+                    pill
+                );
+
+            }
+        );
+
+    }
+
+
+    async function loadDiagnostics() {
+
+        try {
+
+            const response =
+                await fetch(
+                    DIAGNOSTICS_URL,
+                    {
+                        cache: "no-store"
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `HTTP ${response.status}`
+                );
+
+            }
+
+
+            const diagnostics =
+                await response.json();
+
+
+            renderSummary(
+                diagnostics.tables
+            );
+
+
+            renderTables(
+                diagnostics.tables
+            );
+
+
+            renderRetention(
+                "enhet-dates",
+                "enhet-warning",
+                diagnostics.snapshotDates?.enhet
+            );
+
+
+            renderRetention(
+                "underenhet-dates",
+                "underenhet-warning",
+                diagnostics.snapshotDates?.underenhet
+            );
+
+
+            renderMetadataDates(
+                diagnostics.snapshotDates?.metadata
+            );
+
+
+            document.getElementById(
+                "last-refresh"
+            ).textContent =
+                "Updated " +
+                new Date()
+                    .toLocaleTimeString();
+
+
+        } catch (error) {
+
+            console.error(
+                "Could not load database diagnostics",
+                error
+            );
+
+
+            document.getElementById(
+                "tables-body"
+            ).innerHTML = `
+                <tr>
+                    <td colspan="4">
+
+                        <div class="error-box">
+                            Could not load database diagnostics:
+                            ${escapeHtml(
+                error.message
+            )}
+                        </div>
+
+                    </td>
+                </tr>
+            `;
+
+        }
+
+    }
+
+
+    document
+        .getElementById(
+            "refresh-button"
+        )
+        .addEventListener(
+            "click",
+            loadDiagnostics
+        );
+
+
+    loadDiagnostics();
+
+</script>
+
+</body>
+
+</html>

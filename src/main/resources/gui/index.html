@@ -856,53 +856,38 @@
         }
     </style>
 </head>
-
 <body>
-
 <header>
-
     <div class="header-inner">
-
         <div class="brand">
-
             <div class="brand-icon">
                 E
             </div>
-
             <div>
-
                 <h1>
                     EREG Operations
                 </h1>
-
                 <div class="subtitle">
                     Enhetsregister snapshot &amp; Salesforce monitoring
                 </div>
-
             </div>
-
         </div>
 
-
         <div class="refresh">
-
             <span id="last-refresh">
                 Not loaded
             </span>
-
-            <button
-                    id="trigger-run-button"
-                    class="danger"
-            >
+            <button id="trigger-run-button"
+                    class="danger">
                 Trigger run
             </button>
-
             <button id="refresh-button">
                 Refresh
             </button>
-
+            <button onclick="window.open('/internal/gui/diagnos.html', '_blank')">
+                Database diagnostics
+            </button>
         </div>
-
     </div>
 
 </header>
@@ -1196,7 +1181,6 @@
 
             </div>
 
-
             <div
                     id="lookup-message"
                     class="lookup-message"
@@ -1211,8 +1195,6 @@
                     class="lookup-error"
                     style="display: none;"
             ></div>
-
-
             <div
                     id="comparison"
                     class="comparison"
@@ -1222,32 +1204,23 @@
                 <!-- TODAY -->
 
                 <div class="snapshot-panel">
-
                     <div class="snapshot-header">
-
                         <div>
-
                             <div class="snapshot-title">
                                 Today
                             </div>
-
                             <div
                                     class="snapshot-date"
                                     id="lookup-today-date"
                             >
                             </div>
-
                         </div>
-
                     </div>
-
-
                     <div
                             id="lookup-today-body"
                             class="snapshot-body"
                     >
                     </div>
-
                 </div>
 
 
