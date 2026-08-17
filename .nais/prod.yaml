@@ -49,6 +49,9 @@ spec:
         - azp_name
         - NAVident
   accessPolicy:
+    inbound:
+      rules:
+        - application: ereg-sf-v2-trigger-run-job
     outbound:
       external:
         - host: data.brreg.no

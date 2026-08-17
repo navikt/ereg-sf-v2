@@ -1,0 +1,19 @@
+apiVersion: nais.io/v1
+kind: Naisjob
+metadata:
+  name: ereg-sf-v2-trigger-run-job
+  namespace: team-dialog
+  labels:
+    team: team-dialog
+spec:
+  schedule: "0 7 * * *"
+  timeZone: Europe/Oslo
+  image: "{{ image }}" # Will use cgr.dev/chainguard/curl:latest via Dockerfile-job
+  accessPolicy:
+    outbound:
+      rules:
+        - application: ereg-sf-v2
+  command:
+    - curl
+    - http://ereg-sf-v2/internal/triggerRun
+  restartPolicy: Never
