@@ -1,7 +1,7 @@
 plugins {
     id 'application'
 
-    id 'org.jetbrains.kotlin.jvm' version '2.3.20'
+    id 'org.jetbrains.kotlin.jvm' version '2.4.10'
     id 'org.jmailen.kotlinter' version '5.2.0'
     id 'com.gradleup.shadow' version '8.3.1'
 }
@@ -35,19 +35,19 @@ dependencies {
 
     implementation "com.google.code.gson:gson:2.13.2"
 
-    implementation "org.http4k:http4k-core:6.57.1.0"
-    implementation "org.http4k:http4k-server-netty:6.57.1.0"
-    implementation "org.http4k:http4k-client-okhttp:6.57.1.0"
+    implementation "org.http4k:http4k-core:6.57.2.0"
+    implementation "org.http4k:http4k-server-netty:6.57.2.0"
+    implementation "org.http4k:http4k-client-okhttp:6.57.2.0"
 
     implementation "io.github.microutils:kotlin-logging:3.0.5"
     implementation "ch.qos.logback:logback-classic:1.5.34"
     implementation "net.logstash.logback:logstash-logback-encoder:9.0"
-    implementation "tools.jackson.core:jackson-core:3.1.4" // Transitive to net.logstash.logback:logstash-logback-encoder
+    implementation "tools.jackson.core:jackson-core:3.1.5" // Transitive to net.logstash.logback:logstash-logback-encoder
     implementation "tools.jackson.core:jackson-databind:3.1.5" // Transitive to net.logstash.logback:logstash-logback-encoder
     implementation "com.fasterxml.jackson.core:jackson-databind:2.22.1" // Transitive to tools.jackson.core:jackson-databind
 
-    implementation "io.prometheus:simpleclient_common:0.16.0"
-    implementation "io.prometheus:simpleclient_hotspot:0.16.0"
+    implementation "io.prometheus:simpleclient_common:0.9.0"
+    implementation "io.prometheus:simpleclient_hotspot:0.9.0"
 
     implementation "com.auth0:java-jwt:4.6.0"
     implementation "org.bouncycastle:bcpkix-jdk18on:1.85"
