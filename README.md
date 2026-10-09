@@ -1,4 +1,4 @@
-# EREG Salesforce v2
+# EREG Salesforce v2 [<img align="right" src="https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" width="18" alt="GitHub repository" />](https://github.com/navikt/ereg-sf-v2)
 
 En Kotlin-tjeneste som importerer daglige full snapshots fra Brønnøysundregistrenes Enhetsregister, sammenligner dagens snapshot med gårsdagens og publiserer nye, oppdaterte og fjernede enheter til Salesforce.
 
