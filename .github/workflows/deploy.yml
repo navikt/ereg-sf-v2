@@ -90,3 +90,4 @@ jobs:
           CLUSTER: prod-gcp
           RESOURCE: .nais/prod.yaml
           VAR: image=${{ needs.build.outputs.image }},DEPLOY_CLUSTER=prod-gcp
+          
