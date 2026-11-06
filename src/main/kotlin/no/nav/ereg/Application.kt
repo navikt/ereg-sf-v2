@@ -162,20 +162,23 @@ class Application {
                 }
 
         when {
-            date == null ->
+            date == null -> {
                 Response(Status.BAD_REQUEST)
                     .body("Invalid or missing date. Expected yyyy-MM-dd")
+            }
 
-            orgType == null ->
+            orgType == null -> {
                 Response(Status.BAD_REQUEST)
                     .body("Invalid or missing type. Expected ENHET or UNDERENHET")
+            }
 
-            changeType == null ->
+            changeType == null -> {
                 Response(Status.BAD_REQUEST)
                     .body(
                         "Invalid or missing changeType. " +
                             "Expected NEW, UPDATED or REMOVED",
                     )
+            }
 
             else -> {
                 val rows =
@@ -205,13 +208,15 @@ class Application {
                 }
 
         when {
-            orgNumber.isNullOrBlank() ->
+            orgNumber.isNullOrBlank() -> {
                 Response(Status.BAD_REQUEST)
                     .body("Missing orgNumber")
+            }
 
-            date == null ->
+            date == null -> {
                 Response(Status.BAD_REQUEST)
                     .body("Missing or invalid date. Expected yyyy-MM-dd")
+            }
 
             else -> {
                 val enhet =
@@ -644,14 +649,17 @@ class Application {
                 when (
                     snapshot.status
                 ) {
-                    EnhetsregisterSnapshotStatus.LOADING ->
+                    EnhetsregisterSnapshotStatus.LOADING -> {
                         TodayRunStatus.IN_PROGRESS
+                    }
 
-                    EnhetsregisterSnapshotStatus.FAILED ->
+                    EnhetsregisterSnapshotStatus.FAILED -> {
                         TodayRunStatus.FAILED
+                    }
 
-                    EnhetsregisterSnapshotStatus.READY ->
+                    EnhetsregisterSnapshotStatus.READY -> {
                         TodayRunStatus.DONE
+                    }
                 },
             enhetCount = snapshot.enhetCount ?: 0,
             underenhetCount = snapshot.underenhetCount ?: 0,
@@ -852,10 +860,11 @@ class Application {
                 return
             }
 
-            TodayRunStatus.IN_PROGRESS ->
+            TodayRunStatus.IN_PROGRESS -> {
                 error(
                     "Snapshot $snapshotDate is already in progress",
                 )
+            }
 
             TodayRunStatus.FAILED -> {
                 log.info {
@@ -1066,23 +1075,26 @@ class Application {
             PostgresDatabase.getEnhetsregisterSnapshot(today)
 
         when {
-            snapshot == null ->
+            snapshot == null -> {
                 Response(Status.CONFLICT)
                     .body("Today's snapshot does not exist")
+            }
 
-            snapshot.status != EnhetsregisterSnapshotStatus.READY ->
+            snapshot.status != EnhetsregisterSnapshotStatus.READY -> {
                 Response(Status.CONFLICT)
                     .body(
                         "Today's snapshot is not READY: " +
                             snapshot.status,
                     )
+            }
 
             !salesforceFullLoadRunning.compareAndSet(
                 false,
                 true,
-            ) ->
+            ) -> {
                 Response(Status.CONFLICT)
                     .body("Salesforce full load already running")
+            }
 
             else -> {
                 runExecutor.submit {
@@ -1234,7 +1246,9 @@ class Application {
                                 change
                             }
 
-                            else -> null
+                            else -> {
+                                null
+                            }
                         }
                     }
 
@@ -1360,7 +1374,9 @@ class Application {
                                 change
                             }
 
-                            else -> null
+                            else -> {
+                                null
+                            }
                         }
                     }
 
@@ -1667,19 +1683,23 @@ class Application {
                 val status =
                     when {
                         today?.status == SalesforceDiffStatus.FAILED ||
-                            removed?.status == SalesforceDiffStatus.FAILED ->
+                            removed?.status == SalesforceDiffStatus.FAILED -> {
                             SalesforceDiffStatus.FAILED
+                        }
 
                         today?.status == SalesforceDiffStatus.IN_PROGRESS ||
-                            removed?.status == SalesforceDiffStatus.IN_PROGRESS ->
+                            removed?.status == SalesforceDiffStatus.IN_PROGRESS -> {
                             SalesforceDiffStatus.IN_PROGRESS
+                        }
 
                         today?.status == SalesforceDiffStatus.DONE &&
-                            removed?.status == SalesforceDiffStatus.DONE ->
+                            removed?.status == SalesforceDiffStatus.DONE -> {
                             SalesforceDiffStatus.DONE
+                        }
 
-                        else ->
+                        else -> {
                             SalesforceDiffStatus.NOT_STARTED
+                        }
                     }
 
                 val lastOrgNumber =
@@ -1710,18 +1730,22 @@ class Application {
 
         val globalStatus =
             when {
-                statuses.any { it == SalesforceDiffStatus.FAILED.name } ->
+                statuses.any { it == SalesforceDiffStatus.FAILED.name } -> {
                     SalesforceDiffStatus.FAILED.name
+                }
 
-                statuses.any { it == SalesforceDiffStatus.IN_PROGRESS.name } ->
+                statuses.any { it == SalesforceDiffStatus.IN_PROGRESS.name } -> {
                     SalesforceDiffStatus.IN_PROGRESS.name
+                }
 
                 statuses.size == OrgType.entries.size &&
-                    statuses.all { it == SalesforceDiffStatus.DONE.name } ->
+                    statuses.all { it == SalesforceDiffStatus.DONE.name } -> {
                     SalesforceDiffStatus.DONE.name
+                }
 
-                else ->
+                else -> {
                     SalesforceDiffStatus.NOT_STARTED.name
+                }
             }
 
         return mapOf(
@@ -1958,14 +1982,17 @@ data class ChangeStats(
 
     fun add(change: OrganisationChange) =
         when (change.changeType) {
-            ChangeType.NEW ->
+            ChangeType.NEW -> {
                 copy(new = new + 1)
+            }
 
-            ChangeType.UPDATED ->
+            ChangeType.UPDATED -> {
                 copy(updated = updated + 1)
+            }
 
-            ChangeType.REMOVED ->
+            ChangeType.REMOVED -> {
                 copy(removed = removed + 1)
+            }
         }
 }
 

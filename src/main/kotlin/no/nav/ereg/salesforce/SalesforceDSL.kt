@@ -27,7 +27,10 @@ val gson = Gson()
 fun OkHttp.supportProxy(httpsProxy: String): HttpHandler =
     httpsProxy.let { p ->
         when {
-            p.isEmpty() -> this()
+            p.isEmpty() -> {
+                this()
+            }
+
             else -> {
                 val uri = URI(p)
                 val proxy =

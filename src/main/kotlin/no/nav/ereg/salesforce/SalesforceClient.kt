@@ -105,7 +105,9 @@ class SalesforceClient(
                     false
                 }
 
-                results.all { it.success } -> true
+                results.all { it.success } -> {
+                    true
+                }
 
                 else -> {
                     results
