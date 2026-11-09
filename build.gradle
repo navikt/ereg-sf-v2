@@ -1,9 +1,9 @@
 plugins {
     id 'application'
 
-    id 'org.jetbrains.kotlin.jvm' version '2.3.20'
-    id 'org.jmailen.kotlinter' version '5.2.0'
-    id 'com.gradleup.shadow' version '8.3.1'
+    id 'org.jetbrains.kotlin.jvm' version '2.4.21'
+    id 'org.jmailen.kotlinter' version '5.7.0'
+    id 'com.gradleup.shadow' version '9.6.1'
 }
 
 group 'no.nav.ereg'
@@ -29,34 +29,35 @@ repositories {
 }
 
 dependencies {
-    implementation "no.nav.security:token-validation-core:5.0.29"
+    implementation "no.nav.security:token-validation-core:5.0.30"
 
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0"
 
-    implementation "com.google.code.gson:gson:2.13.2"
+    implementation "com.google.code.gson:gson:2.15.0"
 
-    implementation "org.http4k:http4k-core:6.57.1.0"
-    implementation "org.http4k:http4k-server-netty:6.57.1.0"
-    implementation "org.http4k:http4k-client-okhttp:6.57.1.0"
+    implementation "org.http4k:http4k-core:6.61.0.0"
+    implementation "org.http4k:http4k-server-netty:6.61.0.0"
+    implementation "org.http4k:http4k-client-okhttp:6.61.0.0"
 
     implementation "io.github.microutils:kotlin-logging:3.0.5"
-    implementation "ch.qos.logback:logback-classic:1.5.34"
+    implementation "ch.qos.logback:logback-classic:1.6.6"
     implementation "net.logstash.logback:logstash-logback-encoder:9.0"
 
+    implementation "tools.jackson.core:jackson-databind:3.2.4" // Transitive dependency for net.logstash.logback:logstash-logback-encoder:9.0
     implementation "io.prometheus:simpleclient_common:0.16.0"
     implementation "io.prometheus:simpleclient_hotspot:0.16.0"
 
-    implementation "com.auth0:java-jwt:4.6.0"
-    implementation "org.bouncycastle:bcpkix-jdk18on:1.85"
+    implementation "com.auth0:java-jwt:4.6.2"
+    implementation "org.bouncycastle:bcpkix-jdk18on:1.86"
 
     implementation "org.postgresql:postgresql:42.7.14"
 
-    implementation "org.jetbrains.exposed:exposed-core:0.46.0"
-    implementation "org.jetbrains.exposed:exposed-dao:0.46.0"
-    implementation "org.jetbrains.exposed:exposed-jdbc:0.46.0"
-    implementation "org.jetbrains.exposed:exposed-java-time:0.46.0"
+    implementation "org.jetbrains.exposed:exposed-core:0.61.0"
+    implementation "org.jetbrains.exposed:exposed-dao:0.61.0"
+    implementation "org.jetbrains.exposed:exposed-jdbc:0.61.0"
+    implementation "org.jetbrains.exposed:exposed-java-time:0.61.0"
 
-    implementation "com.zaxxer:HikariCP:3.4.1"
+    implementation "com.zaxxer:HikariCP:5.1.0"
 
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
     testImplementation "org.junit.jupiter:junit-jupiter-api:5.11.4"
